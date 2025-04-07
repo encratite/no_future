@@ -1,13 +1,14 @@
 import os
 
 import matplotlib.pyplot as plt
+from matplotlib.widgets import Cursor
 import seaborn as sns
 import pandas as pd
 
 from configuration import Configuration
 
 def render_chart(symbols: list[str], start: pd.Timestamp | None, end: pd.Timestamp | None):
-	plt.figure(figsize=(10, 6))
+	fig, ax = plt.subplots(figsize=(12, 8))
 	xlim_min_values = []
 	xlim_max_values = []
 	for symbol in symbols:
@@ -23,13 +24,17 @@ def render_chart(symbols: list[str], start: pd.Timestamp | None, end: pd.Timesta
 			df = df[(df["time"] < end)]
 		xlim_min_values.append(df["time"].min())
 		xlim_max_values.append(df["time"].max())
-		sns.lineplot(x=df["time"], y=df["close"], label=symbol)
+		sns.lineplot(ax=ax, x=df["time"], y=df["close"], label=symbol)
 	xlim_min = min(xlim_min_values)
 	xlim_max = max(xlim_max_values)
 	plt.xlim(xlim_min, xlim_max)
+
+	plt.ion()
+	cursor = Cursor(ax, horizOn=False, vertOn=True, color="grey", linewidth=1, alpha=0.2)
+
 	plt.xlabel("Time")
 	plt.ylabel("Price")
 	plt.legend()
 	plt.tight_layout()
-	plt.show()
+	plt.show(block=True)
 	plt.close()

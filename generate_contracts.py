@@ -10,6 +10,7 @@ import pandas as pd
 
 from configuration import Configuration
 from contract_configuration import get_contract_filter
+from contract_filter import ContractFilter
 from globex import GlobexCode
 from ohlc import OhlcRecord
 
@@ -42,7 +43,7 @@ def generate_contract(symbol: str) -> None:
 	time_records = [(time, records) for time, records in contracts_per_day.items()]
 	# Technically redundant, but make sure the records are sorted by time either way
 	time_records = sorted(time_records, key=get_time_key)
-	calculate_rollover_offsets(time_records, contract_ranges, record_offsets)
+	calculate_rollover_offsets(time_records, contract_ranges, record_offsets, contract_filter)
 	write_contract_files(symbol, record_offsets)
 
 def get_time_key(time_records: tuple[pd.Timestamp, list[OhlcRecord]]) -> pd.Timestamp:
@@ -52,7 +53,8 @@ def get_time_key(time_records: tuple[pd.Timestamp, list[OhlcRecord]]) -> pd.Time
 def calculate_rollover_offsets(
 	time_records: list[tuple[pd.Timestamp, list[OhlcRecord]]],
 	contract_ranges: dict[GlobexCode, tuple[pd.Timestamp, pd.Timestamp]],
-	record_offsets: dict[str, list[tuple[OhlcRecord, float]]]
+	record_offsets: dict[str, list[tuple[OhlcRecord, float]]],
+	contract_filter: ContractFilter | None
 ):
 	_, first_records = next(iter(time_records))
 	# Select first Globex code by open interest
@@ -72,24 +74,26 @@ def calculate_rollover_offsets(
 			if new_record.globex_code > current_globex_code:
 				# Roll over into new contract
 				offset = new_record.close - current_record.close
-				# print(f"[{f1_key}] {time.date()} {current_globex_code} -> {new_record.globex_code}: {offset:+.6f}")
 				current_globex_code = new_record.globex_code
 				current_record = new_record
 		record_offsets[f1_key].append((current_record, offset))
-		f_records = generate_f_records(time, current_globex_code, records, record_offsets)
-		generate_fy_records(current_globex_code, f_records, record_offsets)
+		f_records = generate_f_records(current_globex_code, records, record_offsets, contract_filter)
+		generate_fy_records(current_globex_code, f_records, record_offsets, contract_filter)
 
 def generate_f_records(
-	time: pd.Timestamp,
 	current_globex_code: GlobexCode,
 	records: list[OhlcRecord],
-	record_offsets: dict[str, list[tuple[OhlcRecord, float]]]
+	record_offsets: dict[str, list[tuple[OhlcRecord, float]]],
+	contract_filter: ContractFilter | None
 ) -> list[OhlcRecord]:
 	# Create records for contracts F2, F3, etc.
 	f_records = [x for x in records if x.globex_code > current_globex_code]
 	f_records = sorted(f_records, key=lambda x: x.globex_code)
 	f_number = 2
 	for record in f_records:
+		if contract_filter is not None and contract_filter.f_records_limit is not None:
+			if f_number > cast(int, contract_filter.f_records_limit):
+				break
 		f_key = f"F{f_number}"
 		previous_records = record_offsets[f_key]
 		offset = 0
@@ -97,7 +101,6 @@ def generate_f_records(
 			last_record, _last_offset = previous_records[-1]
 			if record.globex_code > last_record.globex_code:
 				offset = record.close - last_record.close
-				# print(f"[{f_key}] {time.date()} {last_record.globex_code} -> {record.globex_code}: {offset:+.6f}")
 			elif record.globex_code < last_record.globex_code:
 				# Awkward case, an unexpectedly low Globex code that wasn't previously available
 				# Ignore it
@@ -111,8 +114,11 @@ def generate_f_records(
 def generate_fy_records(
 	current_globex_code: GlobexCode,
 	f_records: list[OhlcRecord],
-	record_offsets: dict[str, list[tuple[OhlcRecord, float]]]
+	record_offsets: dict[str, list[tuple[OhlcRecord, float]]],
+	contract_filter: ContractFilter | None
 ) -> None:
+	if contract_filter is not None and not contract_filter.enable_fy_records:
+		return
 	# Create records for FY contract (i.e. the contract one year ahead of F1)
 	fy_globex_code = copy(current_globex_code)
 	fy_globex_code.add_year()
