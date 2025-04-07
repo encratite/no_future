@@ -1,0 +1,33 @@
+from argparse import ArgumentParser
+import pandas as pd
+
+from generate_contracts import generate_all_contracts, generate_contract
+from chart import render_chart
+
+def get_date_argument(date_string: str) -> pd.Timestamp:
+	pd.to_datetime(date_string, format="%Y-%m-%d", errors="raise")
+	return pd.Timestamp(date_string)
+
+parser = ArgumentParser(description="Futures backtesting environment")
+group = parser.add_mutually_exclusive_group()
+group.add_argument("--generate-all", action="store_true", help="Generate continuous contracts for all symbols")
+group.add_argument("--generate", metavar="SYMBOL", help="Generate a continuous contract for the specified symbol")
+chart_help = "Render a chart for the specified symbols\n"
+chart_help += "By default this will display all available data"
+chart_help += "Use --from and --to to limit the chart to a certain time range"
+group.add_argument("--chart", metavar="SYMBOLS", nargs="*", help=chart_help)
+parser.add_argument("--start", metavar="DATE", type=get_date_argument, help="Restrict data to be read to after this date")
+parser.add_argument("--end", metavar="DATE", type=get_date_argument, help="Read no data after this date")
+args = parser.parse_args()
+if args.generate_all:
+	generate_all_contracts()
+elif args.generate is not None:
+	symbol: str = args.generate
+	generate_contract(symbol)
+elif args.chart is not None:
+	symbols: list[str] = args.chart
+	start: pd.Timestamp | None = args.start
+	end: pd.Timestamp | None = args.end
+	render_chart(symbols, start, end)
+else:
+	parser.print_help()

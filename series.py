@@ -32,8 +32,8 @@ class TimeSeries(Generic[T]):
 		return series
 
 	@staticmethod
-	def read_ohlc_csv(path: str) -> TimeSeries[OhlcRecord]:
-		df = pd.read_csv(path)
+	def read_ohlc_feather(path: str) -> TimeSeries[OhlcRecord]:
+		df = pd.read_feather(path)
 		data = SortedDict()
 		for row in df.itertuples(index=False):
 			ohlc = OhlcRecord(row)

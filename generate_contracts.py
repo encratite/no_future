@@ -13,7 +13,7 @@ from contract_configuration import get_contract_filter
 from globex import GlobexCode
 from ohlc import OhlcRecord
 
-def generate_continuous_contract(symbol: str) -> None:
+def generate_contract(symbol: str) -> None:
 	input_path = os.path.join(Configuration.BARCHART_DIRECTORY, f"{symbol}.D1.csv")
 	print(f"Processing {input_path}")
 	df: pd.DataFrame = pd.read_csv(input_path, parse_dates=["time"])
@@ -189,4 +189,4 @@ def generate_all_contracts():
 	symbols = sorted(symbols)
 	thread_count = os.cpu_count()
 	with ThreadPoolExecutor(max_workers=thread_count) as executor:
-		executor.map(generate_continuous_contract, symbols)
+		executor.map(generate_contract, symbols)
