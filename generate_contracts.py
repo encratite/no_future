@@ -13,6 +13,7 @@ from contract_configuration import get_contract_filter
 from contract_filter import ContractFilter
 from globex import GlobexCode
 from ohlc import OhlcRecord
+from common import execute_thread_pool
 
 def generate_contract(symbol: str) -> None:
 	input_path = os.path.join(Configuration.BARCHART_DIRECTORY, f"{symbol}.D1.csv")
@@ -193,6 +194,4 @@ def generate_all_contracts():
 		symbol = match[0]
 		symbols.append(symbol)
 	symbols = sorted(symbols)
-	thread_count = os.cpu_count()
-	with ThreadPoolExecutor(max_workers=thread_count) as executor:
-		executor.map(generate_contract, symbols)
+	execute_thread_pool(generate_contract, symbols)

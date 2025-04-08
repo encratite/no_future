@@ -30,7 +30,7 @@ def render_chart(symbols: list[str], start: pd.Timestamp | None, end: pd.Timesta
 	plt.xlim(xlim_min, xlim_max)
 
 	plt.ion()
-	cursor = Cursor(ax, horizOn=False, vertOn=True, color="grey", linewidth=1, alpha=0.2)
+	_cursor = Cursor(ax, horizOn=False, vertOn=True, color="grey", linewidth=1, alpha=0.2)
 
 	plt.xlabel("Time")
 	plt.ylabel("Price")
