@@ -1,28 +1,14 @@
 import os
-import platform
-import re
 import sysconfig
 from concurrent.futures import ThreadPoolExecutor
 from typing import Any, Iterable, Iterator
-from tabulate import tabulate
 
 from colorama import Fore, Style
+from tabulate import tabulate
 
-def translate_path(path: str) -> str:
-	if platform.system() == "Windows":
-		return path
-	elif platform.system() == "Linux":
-		# Translate a Windows path to a WSL path
-		pattern = re.compile(r"^(?P<drive>[A-Z]):\\(?P<path>.+)")
-		match = pattern.match(path)
-		if match is None:
-			raise Exception(f"Invalid Windows path: {path}")
-		drive = match.group("drive").lower()
-		windows_path = match.group("path").replace("\\", "/")
-		output = f"/mnt/{drive}/{windows_path}"
-		return output
-	else:
-		raise Exception("Unknown operating system")
+from configuration import Configuration
+from ohlc import OhlcRecord
+from series import TimeSeries
 
 def execute_thread_pool(fn: Any, *iterable: Iterable) -> Iterator[Any]:
 	if sysconfig.get_config_vars()["Py_GIL_DISABLED"] == 1:
@@ -49,3 +35,15 @@ def print_table(table: list[list[Any]]):
 	table_string = tabulate(table, headers="firstrow", tablefmt="simple_outline", disable_numparse=True, colalign=column_alignment)
 	print(table_string)
 	print("")
+
+def read_ohlc_series(symbol: str) -> TimeSeries[OhlcRecord]:
+	if "." not in symbol:
+		file_name = f"{symbol}.F1"
+	else:
+		file_name = symbol
+	path = os.path.join(Configuration.FEATHER_DIRECTORY, f"{file_name}.feather")
+	ohlc_series = TimeSeries.read_ohlc_feather(path)
+	return ohlc_series
+
+def get_rate_of_change(new_value: float, old_value: float) -> float:
+	return new_value / old_value - 1

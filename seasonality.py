@@ -1,41 +1,56 @@
 import calendar
-import os
 from collections import defaultdict
 from itertools import repeat
 from statistics import mean
+from typing import Final
 
 import pandas as pd
 
-from common import execute_thread_pool, format_percentage, print_table
-from configuration import Configuration
-from series import TimeSeries
+from common import execute_thread_pool, format_percentage, print_table, read_ohlc_series, get_rate_of_change
 
 TABLE_CONFIGS = [
-	("Symbol (IS) ", lambda x: x.in_sample_stats),
-	("Symbol (OOS)", lambda x: x.out_of_sample_stats),
+	("Symbol (Old)   ", lambda x: x.old_stats),
+	("Symbol (Recent)", lambda x: x.recent_stats),
 ]
 
 class SeasonalityStats:
 	day_of_week_returns: defaultdict[int, list[float]]
 	monthly_returns: defaultdict[int, list[float]]
+	early_monthly_returns: list[float]
+	late_monthly_returns: list[float]
 
 	def __init__(self):
 		self.day_of_week_returns = defaultdict(list)
 		self.monthly_returns = defaultdict(list)
+		self.early_monthly_returns = []
+		self.late_monthly_returns = []
 
 	def add(self, time: pd.Timestamp, returns: float):
 		self.day_of_week_returns[time.day_of_week].append(returns)
 		self.monthly_returns[time.month].append(returns)
+		early_late_delta = pd.Timedelta(days=1)
+		one_day = pd.Timedelta(days=1)
+		previous_time: pd.Timestamp = time - early_late_delta
+		saturday: Final[int] = 5
+		while previous_time.day_of_week >= saturday:
+			previous_time -= one_day
+		next_time: pd.Timestamp = time + early_late_delta
+		while next_time.day_of_week >= saturday:
+			next_time += one_day
+		if previous_time.month != time.month:
+			self.early_monthly_returns.append(returns)
+		elif next_time.month != time.month:
+			self.late_monthly_returns.append(returns)
 
 class SymbolStats:
 	symbol: str
-	in_sample_stats: SeasonalityStats
-	out_of_sample_stats: SeasonalityStats
+	old_stats: SeasonalityStats
+	recent_stats: SeasonalityStats
 
 	def __init__(self, symbol: str):
 		self.symbol = symbol
-		self.in_sample_stats = SeasonalityStats()
-		self.out_of_sample_stats = SeasonalityStats()
+		self.old_stats = SeasonalityStats()
+		self.recent_stats = SeasonalityStats()
 
 def analyze_seasonality(symbols: list[str], start: pd.Timestamp, split: pd.Timestamp, end: pd.Timestamp) -> None:
 	assert start < split < end
@@ -43,6 +58,7 @@ def analyze_seasonality(symbols: list[str], start: pd.Timestamp, split: pd.Times
 	stats = list(stats_iterable)
 	print_day_of_week_stats(stats)
 	print_monthly_stats(stats)
+	print_early_late_monthly_stats(stats)
 
 def print_day_of_week_stats(stats: list[SymbolStats]) -> None:
 	week_range = range(5)
@@ -78,13 +94,22 @@ def print_monthly_stats(stats: list[SymbolStats]) -> None:
 			table.append(row)
 		print_table(table)
 
+def print_early_late_monthly_stats(stats: list[SymbolStats]) -> None:
+	for title, sample_stats_fn in TABLE_CONFIGS:
+		month_headers = [title, "Turn of the Month (Early)", "Turn of the Month (Late)"]
+		table = [month_headers]
+		for symbol_stats in stats:
+			sample_stats = sample_stats_fn(symbol_stats)
+			early_returns = mean(sample_stats.early_monthly_returns)
+			early_string = format_percentage(early_returns)
+			late_returns = mean(sample_stats.late_monthly_returns)
+			late_string = format_percentage(late_returns)
+			row = [symbol_stats.symbol, early_string, late_string]
+			table.append(row)
+		print_table(table)
+
 def analyze_seasonality_by_symbol(symbol: str, start: pd.Timestamp, split: pd.Timestamp, end: pd.Timestamp) -> SymbolStats:
-	if "." not in symbol:
-		file_name = f"{symbol}.F1"
-	else:
-		file_name = symbol
-	path = os.path.join(Configuration.FEATHER_DIRECTORY, f"{file_name}.feather")
-	ohlc_series = TimeSeries.read_ohlc_feather(path)
+	ohlc_series = read_ohlc_series(symbol)
 	previous_record = None
 	symbol_stats = SymbolStats(symbol)
 	for time in ohlc_series:
@@ -93,10 +118,7 @@ def analyze_seasonality_by_symbol(symbol: str, start: pd.Timestamp, split: pd.Ti
 		record = ohlc_series.get(time)
 		if previous_record is not None:
 			returns = get_rate_of_change(record.close, previous_record.close)
-			stats = symbol_stats.in_sample_stats if time < split else symbol_stats.out_of_sample_stats
+			stats = symbol_stats.old_stats if time < split else symbol_stats.recent_stats
 			stats.add(time, returns)
 		previous_record = record
 	return symbol_stats
-
-def get_rate_of_change(new_value: float, old_value: float) -> float:
-	return new_value / old_value - 1
