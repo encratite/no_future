@@ -10,8 +10,11 @@ from configuration import Configuration
 from ohlc import OhlcRecord
 from series import TimeSeries
 
+def has_free_threading() -> bool:
+	return sysconfig.get_config_vars()["Py_GIL_DISABLED"] == 1
+
 def execute_thread_pool(fn: Any, *iterable: Iterable) -> Iterator[Any]:
-	if sysconfig.get_config_vars()["Py_GIL_DISABLED"] == 1:
+	if has_free_threading():
 		thread_count = os.cpu_count()
 	else:
 		thread_count = 1
