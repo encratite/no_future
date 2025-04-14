@@ -150,15 +150,17 @@ def get_lightgbm_models() -> list[tuple[str, ModelType, Any, dict]]:
 
 def get_pytorch_models(feature_count: int) -> list[tuple[str, ModelType, Any, dict]]:
 	hidden_values = [
-		(8, 4),
-		(16, 8),
-		(32, 16),
+		# (8, 4),
+		# (8, 4, 2),
+		# (16, 8),
+		(16, 8, 4),
+		# (32, 16),
 		# (64, 32)
 	]
 	activation_values = [
 		"relu",
-		"sigmoid",
-		"tanh"
+		# "sigmoid",
+		# "tanh"
 	]
 	batch_size_values = [
 		1,
@@ -168,10 +170,10 @@ def get_pytorch_models(feature_count: int) -> list[tuple[str, ModelType, Any, di
 		# 32
 	]
 	learning_rate_values = [
-		0.003
+		0.001,
 	]
 	epochs = [
-		100
+		10
 	]
 	combinations = product(
 		hidden_values,

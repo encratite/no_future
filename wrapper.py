@@ -1,5 +1,4 @@
 from abc import ABC, abstractmethod
-from statistics import mean
 from typing import Final
 
 import numpy.typing as npt
@@ -7,9 +6,7 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 from torch.utils.data import TensorDataset, DataLoader
-from sklearn.metrics import r2_score as get_r2_score
 
-from common import format_percentage
 from configuration import Configuration
 
 class RegressionWrapper(ABC):
@@ -72,46 +69,26 @@ class PyTorchWrapper(RegressionWrapper):
 		self._epochs = epochs
 
 	def fit(self, x: npt.NDArray, y: npt.NDArray) -> None:
-		early_stopping_samples = 4 * Configuration.MAX_BATCH_SIZE
-		x_training = x[:-early_stopping_samples]
-		y_training = y[:-early_stopping_samples]
-		x_validation = x[-early_stopping_samples:]
-		y_validation = y[-early_stopping_samples:]
-		x_training_tensor = torch.tensor(x_training, dtype=torch.float32, device=self.DEVICE)
-		y_training_tensor = torch.tensor(y_training, dtype=torch.float32, device=self.DEVICE).unsqueeze(1)
-		x_validation_tensor = torch.tensor(x_validation, dtype=torch.float32, device=self.DEVICE)
-		dataset = TensorDataset(x_training_tensor, y_training_tensor)
+		x_tensor = torch.tensor(x, dtype=torch.float32, device=self.DEVICE)
+		y_tensor = torch.tensor(y, dtype=torch.float32, device=self.DEVICE).unsqueeze(1)
+		dataset = TensorDataset(x_tensor, y_tensor)
 		generator = torch.Generator()
 		generator.manual_seed(Configuration.SEED)
 		data_loader = DataLoader(dataset, batch_size=self._batch_size, shuffle=True, generator=generator)
 		criterion = nn.MSELoss()
 		optimizer = optim.Adam(self._model.parameters(), lr=self._learning_rate)
-		r2_score_buffer_size: Final[int] = 10
-		previous_r2_scores: list[float] = []
 		for epoch in range(self._epochs):
 			self._model.train()
+			epoch_loss = 0
 			for batch_x, batch_y in data_loader:
 				optimizer.zero_grad()
 				outputs = self._model(batch_x)
 				loss = criterion(outputs, batch_y)
 				loss.backward()
 				optimizer.step()
-
-			self._model.eval()
-			with torch.no_grad():
-				training_predictions = self._model(x_training_tensor)
-				validation_predictions = self._model(x_validation_tensor)
-				training_predictions_np = training_predictions.squeeze().cpu().numpy()
-				validation_predictions_np = validation_predictions.squeeze().cpu().numpy()
-				r2_score_training = get_r2_score(y_training, training_predictions_np)
-				r2_score_validation = get_r2_score(y_validation, validation_predictions_np)
-				print(f"Epoch {epoch + 1}/{self._epochs}: IS R^2 {format_percentage(r2_score_training)}, OOS R^2 {format_percentage(r2_score_validation)}")
-				previous_r2_scores.append(r2_score_validation)
-				if len(previous_r2_scores) > r2_score_buffer_size:
-					previous_r2_scores = previous_r2_scores[1:]
-				if len(previous_r2_scores) >= r2_score_buffer_size and r2_score_training > 0 and r2_score_validation < mean(previous_r2_scores):
-					print("Detected OOS model degradation, stopping training")
-					break
+				epoch_loss += loss.item() * batch_x.size(0)
+			mean_loss = epoch_loss / len(dataset)
+			print(f"Epoch {epoch + 1}/{self._epochs}: {mean_loss:.6f}")
 
 	def predict(self, x: npt.NDArray) -> npt.NDArray:
 		x_tensor = torch.tensor(x, dtype=torch.float32, device=self.DEVICE)

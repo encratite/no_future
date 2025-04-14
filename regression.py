@@ -1,6 +1,7 @@
 import warnings
 from collections import defaultdict
 from itertools import chain
+from random import random
 from statistics import mean
 from typing import Iterable
 
@@ -108,7 +109,8 @@ def analyze_momentum_by_symbol(symbol: str, start: pd.Timestamp, split: pd.Times
 	# momentum_days = [20, 60, 250]
 	# momentum_days = [x + 2 for x in range(20)]
 	momentum_days = []
-	feature_count = sequential_returns + len(momentum_days)
+	day_of_week_features = 5
+	feature_count = sequential_returns + len(momentum_days) + day_of_week_features
 	x_training = np.empty((training_samples, feature_count), dtype=np.float64)
 	y_training = np.empty(training_samples, dtype=np.float64)
 	x_validation = np.empty((validation_samples, feature_count), dtype=np.float64)
@@ -163,6 +165,8 @@ def get_features(
 		for days in momentum_days:
 			feature = get_rate_of_change(today.close, records[days - 1].close)
 			features.append(feature)
+		for day in range(5):
+			features.append(1 if time.day_of_week == day else 0)
 		label = get_rate_of_change(tomorrow.close, today.close)
 		x[i] = features
 		y[i] = label
