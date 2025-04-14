@@ -2,6 +2,7 @@ import os
 import sysconfig
 from concurrent.futures import ThreadPoolExecutor
 from typing import Any, Iterable, Iterator
+from math import log
 
 from colorama import Fore, Style
 from tabulate import tabulate
@@ -25,7 +26,7 @@ def get_performance_string(performance: float) -> str:
 	return format_percentage(performance - 1)
 
 def format_percentage(percentage: float) -> str:
-	output = f"{percentage:+.2%}"
+	output = f"{percentage:.2%}"
 	if percentage > 0:
 		output = f"{Fore.GREEN}{output}{Style.RESET_ALL}"
 	elif percentage < 0:
@@ -50,3 +51,9 @@ def read_ohlc_series(symbol: str) -> TimeSeries[OhlcRecord]:
 
 def get_rate_of_change(new_value: float, old_value: float) -> float:
 	return new_value / old_value - 1
+
+def get_log_returns(new_value: float, old_value: float) -> float:
+	value = new_value / old_value
+	if value <= 0:
+		value = 0.01
+	return log(value)

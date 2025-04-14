@@ -9,6 +9,7 @@ class RegressionResult:
 	parameters: dict[str, Any]
 	r2_score_training: float
 	r2_score_validation: float
+	feature_count: int
 
 	def __init__(
 		self,
@@ -17,7 +18,8 @@ class RegressionResult:
 		model_type: ModelType,
 		parameters: dict[str, Any],
 		r2_score_training: float,
-		r2_score_validation: float
+		r2_score_validation: float,
+		feature_count: int
 	) -> None:
 		self.symbol = symbol
 		self.model_name = model_name
@@ -25,3 +27,4 @@ class RegressionResult:
 		self.parameters = parameters
 		self.r2_score_training = r2_score_training
 		self.r2_score_validation = r2_score_validation
+		self.feature_count = feature_count

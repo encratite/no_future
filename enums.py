@@ -9,3 +9,4 @@ class ModelType(Enum):
 	BAYESIAN_RIDGE: Final[int] = 4
 	RANDOM_FOREST: Final[int] = 5
 	LIGHTGBM: Final[int] = 6
+	PYTORCH: Final[int] = 7

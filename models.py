@@ -8,11 +8,14 @@ from sklearn.linear_model import LinearRegression, ElasticNetCV, LassoCV, ARDReg
 from common import has_free_threading
 from configuration import Configuration
 from enums import ModelType
+from wrapper import PyTorchWrapper
 
-def get_models() -> list[tuple[str, ModelType, Any, dict]]:
+def get_models(feature_count: int) -> list[tuple[str, ModelType, Any, dict]]:
 	models = get_linear_models()
 	models += get_random_forest_models()
 	models += get_lightgbm_models()
+	if Configuration.ENABLE_PYTORCH_MODELS:
+		models += get_pytorch_models(feature_count)
 	return models
 
 def get_linear_models() -> list[tuple[str, ModelType, Any, dict]]:
@@ -42,12 +45,11 @@ def get_random_forest_models() -> list[tuple[str, ModelType, Any, dict]]:
 	max_depths_values = [
 		# None,
 		2,
-		3,
-		4,
-		5,
+		# 3,
+		# 4,
+		# 5,
 		# 6,
 		# 7,
-		# 8
 	]
 	models = []
 	combinations = product(
@@ -74,10 +76,10 @@ def get_random_forest_models() -> list[tuple[str, ModelType, Any, dict]]:
 
 def get_lightgbm_models() -> list[tuple[str, ModelType, Any, dict]]:
 	num_leaves_values = [
-		4,
+		# 4,
 		5,
-		6,
-		10,
+		# 6,
+		# 10,
 		# 15,
 		# 20,
 		# 30,
@@ -85,12 +87,16 @@ def get_lightgbm_models() -> list[tuple[str, ModelType, Any, dict]]:
 		# 50
 	]
 	min_data_in_leaf_values = [
+		0,
+		1,
+		2,
+		# 3,
 		# 5,
-		10,
-		15,
-		20,
-		30,
-		40,
+		# 10,
+		# 15,
+		# 20,
+		# 30,
+		# 40,
 	]
 	max_depth_values = [
 		# -1,
@@ -102,15 +108,17 @@ def get_lightgbm_models() -> list[tuple[str, ModelType, Any, dict]]:
 		# 7,
 	]
 	num_iterations_values = [
+		15,
 		20,
 		25,
 		30,
 		40,
-		50,
-		# 60,
+		# 50,
+		# 75,
+		# 100
 	]
 	learning_rate_values = [
-		0.03,
+		0.01,
 	]
 	models = []
 	combinations = product(
@@ -138,4 +146,56 @@ def get_lightgbm_models() -> list[tuple[str, ModelType, Any, dict]]:
 			seed=Configuration.SEED
 		)
 		models.append(("LGBMRegressor", ModelType.LIGHTGBM, model, parameters))
+	return models
+
+def get_pytorch_models(feature_count: int) -> list[tuple[str, ModelType, Any, dict]]:
+	hidden_values = [
+		(8, 4),
+		(16, 8),
+		(32, 16),
+		# (64, 32)
+	]
+	activation_values = [
+		"relu",
+		"sigmoid",
+		"tanh"
+	]
+	batch_size_values = [
+		1,
+		# 4,
+		# 8,
+		# 16,
+		# 32
+	]
+	learning_rate_values = [
+		0.003
+	]
+	epochs = [
+		100
+	]
+	combinations = product(
+		hidden_values,
+		activation_values,
+		batch_size_values,
+		learning_rate_values,
+		epochs
+	)
+	models = []
+	for hidden, activation, batch_size, learning_rate, epochs in combinations:
+		parameters = {
+			"hidden": hidden,
+			"activation": activation,
+			"batch_size": batch_size,
+			"learning_rate": learning_rate,
+			"epochs": epochs
+		}
+		model = PyTorchWrapper(
+			feature_count,
+			hidden,
+			activation,
+			batch_size,
+			learning_rate,
+			epochs
+		)
+		models.append(("PyTorch", ModelType.PYTORCH, model, parameters))
 	return models
