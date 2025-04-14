@@ -154,13 +154,19 @@ def get_pytorch_models(feature_count: int) -> list[tuple[str, ModelType, Any, di
 		# (8, 4, 2),
 		# (16, 8),
 		(16, 8, 4),
+		# (20, 10, 5),
 		# (32, 16),
+		# (32, 16, 8),
 		# (64, 32)
 	]
 	activation_values = [
 		"relu",
 		# "sigmoid",
 		# "tanh"
+	]
+	optimizer_values = [
+		# "adam",
+		"sgd"
 	]
 	batch_size_values = [
 		1,
@@ -170,33 +176,56 @@ def get_pytorch_models(feature_count: int) -> list[tuple[str, ModelType, Any, di
 		# 32
 	]
 	learning_rate_values = [
-		0.001,
+		0.01,
+		# 0.05,
+		# 0.1
+	]
+	momentum_values = [
+		0,
+		# 0.5,
+		# 0.9,
+		# 0.99
 	]
 	epochs = [
-		10
+		# 10,
+		25,
+		30,
+		35,
+		40,
+		45,
+		50,
+		# 50,
+		# 60,
+		# 100
 	]
 	combinations = product(
 		hidden_values,
 		activation_values,
+		optimizer_values,
 		batch_size_values,
 		learning_rate_values,
+		momentum_values,
 		epochs
 	)
 	models = []
-	for hidden, activation, batch_size, learning_rate, epochs in combinations:
+	for hidden, activation, optimizer, batch_size, learning_rate, momentum, epochs in combinations:
 		parameters = {
 			"hidden": hidden,
 			"activation": activation,
+			"optimizer": optimizer,
 			"batch_size": batch_size,
 			"learning_rate": learning_rate,
+			"momentum": momentum,
 			"epochs": epochs
 		}
 		model = PyTorchWrapper(
 			feature_count,
 			hidden,
 			activation,
+			optimizer,
 			batch_size,
 			learning_rate,
+			momentum,
 			epochs
 		)
 		models.append(("PyTorch", ModelType.PYTORCH, model, parameters))

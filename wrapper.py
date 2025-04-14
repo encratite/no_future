@@ -22,8 +22,10 @@ class PyTorchWrapper(RegressionWrapper):
 	DEVICE: Final[str] = "cpu"
 
 	_model: nn.Sequential
+	_optimizer: str
 	_batch_size: int
 	_learning_rate: float
+	_momentum: float
 	_epochs: int
 
 	def __init__(
@@ -31,8 +33,10 @@ class PyTorchWrapper(RegressionWrapper):
 		features: int,
 		hidden: tuple,
 		activation: str,
+		optimizer: str,
 		batch_size: int,
 		learning_rate: float,
+		momentum: float,
 		epochs: int
 	) -> None:
 		activation_functions = {
@@ -40,6 +44,7 @@ class PyTorchWrapper(RegressionWrapper):
 			"sigmoid": nn.Sigmoid,
 			"tanh": nn.Tanh
 		}
+		self._optimizer = optimizer
 		activation_function = activation_functions[activation]
 		if len(hidden) == 2:
 			hidden1, hidden2 = hidden
@@ -66,6 +71,7 @@ class PyTorchWrapper(RegressionWrapper):
 		self._model.to(self.DEVICE)
 		self._batch_size = batch_size
 		self._learning_rate = learning_rate
+		self._momentum = momentum
 		self._epochs = epochs
 
 	def fit(self, x: npt.NDArray, y: npt.NDArray) -> None:
@@ -76,7 +82,11 @@ class PyTorchWrapper(RegressionWrapper):
 		generator.manual_seed(Configuration.SEED)
 		data_loader = DataLoader(dataset, batch_size=self._batch_size, shuffle=True, generator=generator)
 		criterion = nn.MSELoss()
-		optimizer = optim.Adam(self._model.parameters(), lr=self._learning_rate)
+		optimizers = {
+			"adam": lambda: optim.Adam(self._model.parameters(), lr=self._learning_rate),
+			"sgd": lambda: optim.SGD(self._model.parameters(), lr=self._learning_rate, momentum=self._momentum)
+		}
+		optimizer = optimizers[self._optimizer]()
 		for epoch in range(self._epochs):
 			self._model.train()
 			epoch_loss = 0

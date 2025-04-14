@@ -1,7 +1,6 @@
 import warnings
 from collections import defaultdict
 from itertools import chain
-from random import random
 from statistics import mean
 from typing import Iterable
 
@@ -145,7 +144,8 @@ def analyze_momentum_by_symbol(symbol: str, start: pd.Timestamp, split: pd.Times
 			feature_count
 		)
 		results.append(result)
-		print(f"{model_name}: {parameters}, {format_percentage(r2_score_training)}, {format_percentage(r2_score_validation)}")
+		if Configuration.ENABLE_PYTORCH_MODELS:
+			print(f"{model_name}: {parameters}, {format_percentage(r2_score_training)}, {format_percentage(r2_score_validation)}")
 	return results
 
 def get_features(
