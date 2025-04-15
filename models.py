@@ -29,13 +29,7 @@ def get_linear_models() -> list[tuple[str, ModelType, Any, dict]]:
 
 def get_random_forest_models() -> list[tuple[str, ModelType, Any, dict]]:
 	n_estimators_values = [
-		# 25,
-		# 50,
-		# 75,
-		# 100,
-		125,
-		# 150,
-		# 200
+		100,
 	]
 	criterion_values = [
 		"squared_error",
@@ -76,20 +70,14 @@ def get_random_forest_models() -> list[tuple[str, ModelType, Any, dict]]:
 
 def get_lightgbm_models() -> list[tuple[str, ModelType, Any, dict]]:
 	num_leaves_values = [
-		# 4,
 		5,
-		# 6,
 		# 10,
-		# 15,
-		# 20,
-		# 30,
-		# 40,
 		# 50
 	]
 	min_data_in_leaf_values = [
 		0,
-		1,
-		2,
+		# 1,
+		# 2,
 		# 3,
 		# 5,
 		# 10,
@@ -100,6 +88,7 @@ def get_lightgbm_models() -> list[tuple[str, ModelType, Any, dict]]:
 	]
 	max_depth_values = [
 		# -1,
+		# 1,
 		2,
 		# 3,
 		# 4,
@@ -108,17 +97,13 @@ def get_lightgbm_models() -> list[tuple[str, ModelType, Any, dict]]:
 		# 7,
 	]
 	num_iterations_values = [
-		15,
-		20,
-		25,
-		30,
+		# 10,
 		40,
-		# 50,
-		# 75,
-		# 100
+		# 100,
+		# 500
 	]
 	learning_rate_values = [
-		0.01,
+		0.02,
 	]
 	models = []
 	combinations = product(
@@ -134,7 +119,7 @@ def get_lightgbm_models() -> list[tuple[str, ModelType, Any, dict]]:
 			"min_data_in_leaf": min_data_in_leaf,
 			"max_depth": max_depth,
 			"num_iterations": num_iterations,
-			# "learning_rate": learning_rate,
+			"learning_rate": learning_rate,
 		}
 		model = lgb.LGBMRegressor(
 			num_leaves=num_leaves,

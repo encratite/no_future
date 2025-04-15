@@ -26,10 +26,10 @@ REFERENCE_SYMBOLS: Final[list[str]] = [
 	"VI",
 	"GC",
 	"CL",
-	"NG",
-	"E6",
-	"ZN",
-	"ZT"
+	# "NG",
+	# "E6",
+	# "ZN",
+	# "ZT"
 ]
 
 def perform_regression(
@@ -151,7 +151,7 @@ def symbol_regression(
 	validation_times = [x for x in ohlc_series if split <= x < end]
 	training_samples = len(training_times)
 	validation_samples = len(validation_times)
-	sequential_returns = 30
+	sequential_returns = 7
 	day_of_week_features = 5
 	feature_count = (1 + len(reference_symbols)) * sequential_returns + day_of_week_features
 	x_training = np.empty((training_samples, feature_count), dtype=np.float64)
