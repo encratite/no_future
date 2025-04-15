@@ -2,12 +2,14 @@ import warnings
 from collections import defaultdict
 from itertools import chain
 from statistics import mean
-from typing import Iterable
+from typing import Iterable, Final
 
 import numpy as np
 import numpy.typing as npt
 import pandas as pd
+from sklearn.decomposition import PCA
 from sklearn.exceptions import ConvergenceWarning
+from sklearn.feature_selection import SelectKBest, mutual_info_regression
 from sklearn.metrics import r2_score as get_r2_score
 from sklearn.preprocessing import RobustScaler
 
@@ -19,9 +21,41 @@ from ohlc import OhlcRecord
 from result import RegressionResult
 from series import TimeSeries
 
-def analyze_momentum(symbols: list[str], start: pd.Timestamp, split: pd.Timestamp, end: pd.Timestamp) -> None:
-	def execute_symbol(symbol: str) -> list[RegressionResult]:
-		return analyze_momentum_by_symbol(symbol, start, split, end)
+REFERENCE_SYMBOLS: Final[list[str]] = [
+	"ES",
+	"VI",
+	"GC",
+	"CL",
+	"NG",
+	"E6",
+	"ZN",
+	"ZT"
+]
+
+def perform_regression(
+	symbols: list[str],
+	start: pd.Timestamp,
+	split: pd.Timestamp,
+	end: pd.Timestamp,
+	pca: int | None,
+	select_k_best: int | None
+) -> None:
+	assert not pca or not select_k_best
+
+	reference_ohlc_dict: dict[str, TimeSeries[OhlcRecord]] = {}
+	for symbol in REFERENCE_SYMBOLS:
+		reference_ohlc_dict[symbol] = read_ohlc_series(symbol)
+
+	def execute_symbol(x: str) -> list[RegressionResult]:
+		return symbol_regression(
+			x,
+			start,
+			split,
+			end,
+			pca,
+			select_k_best,
+			reference_ohlc_dict
+		)
 
 	pool_results: Iterable[list[RegressionResult]] = execute_thread_pool(execute_symbol, symbols)
 	all_results: list[RegressionResult] = list(chain.from_iterable(pool_results))
@@ -92,8 +126,21 @@ def print_model_table(description: str, model_results: defaultdict[str, list[Reg
 		table.append(row)
 	print_table(table)
 
-def analyze_momentum_by_symbol(symbol: str, start: pd.Timestamp, split: pd.Timestamp, end: pd.Timestamp) -> list[RegressionResult]:
+def symbol_regression(
+	symbol: str,
+	start: pd.Timestamp,
+	split: pd.Timestamp,
+	end: pd.Timestamp,
+	pca: int | None,
+	select_k_best: int | None,
+	reference_ohlc_dict: dict[str, TimeSeries[OhlcRecord]]
+) -> list[RegressionResult]:
 	assert start < split < end
+	reference_symbols = set(REFERENCE_SYMBOLS)
+	symbol_without_suffix = symbol.replace(".F1", "")
+	if symbol_without_suffix in reference_symbols:
+		reference_symbols.remove(symbol_without_suffix)
+	reference_ohlc_series = [reference_ohlc_dict[x] for x in reference_symbols]
 	ohlc_series = read_ohlc_series(symbol)
 	training_times = [x for x in ohlc_series if start <= x < split]
 	if Configuration.ENABLE_PYTORCH_MODELS:
@@ -105,25 +152,47 @@ def analyze_momentum_by_symbol(symbol: str, start: pd.Timestamp, split: pd.Times
 	training_samples = len(training_times)
 	validation_samples = len(validation_times)
 	sequential_returns = 30
-	# momentum_days = [20, 60, 250]
-	# momentum_days = [x + 2 for x in range(20)]
-	momentum_days = []
 	day_of_week_features = 5
-	feature_count = sequential_returns + len(momentum_days) + day_of_week_features
+	feature_count = (1 + len(reference_symbols)) * sequential_returns + day_of_week_features
 	x_training = np.empty((training_samples, feature_count), dtype=np.float64)
 	y_training = np.empty(training_samples, dtype=np.float64)
 	x_validation = np.empty((validation_samples, feature_count), dtype=np.float64)
 	y_validation = np.empty(validation_samples, dtype=np.float64)
 
-	get_features(sequential_returns, momentum_days, ohlc_series, training_times, x_training, y_training)
-	get_features(sequential_returns, momentum_days, ohlc_series, validation_times, x_validation, y_validation)
+	get_features(
+		sequential_returns,
+		ohlc_series,
+		reference_ohlc_series,
+		training_times,
+		x_training,
+		y_training
+	)
+	get_features(
+		sequential_returns,
+		ohlc_series,
+		reference_ohlc_series,
+		validation_times,
+		x_validation,
+		y_validation
+	)
+
+	if pca is not None:
+		transform = PCA(n_components=pca)
+		transform.fit(x_training)
+		x_training = transform.transform(x_training)
+		x_validation = transform.transform(x_validation)
+	elif select_k_best is not None:
+		transform = SelectKBest(score_func=mutual_info_regression, k=select_k_best)
+		transform.fit(x_training, y_training)
+		x_training = transform.transform(x_training)
+		x_validation = transform.transform(x_validation)
 
 	transformer = RobustScaler()
 	transformer.fit(x_training)
 	x_training = transformer.transform(x_training)
 	x_validation = transformer.transform(x_validation)
 
-	warnings.filterwarnings("ignore", category=UserWarning, module="sklearn.utils.validation")
+	warnings.filterwarnings("ignore", category=UserWarning)
 	warnings.filterwarnings("ignore", category=ConvergenceWarning)
 
 	models = get_models(feature_count)
@@ -150,23 +219,28 @@ def analyze_momentum_by_symbol(symbol: str, start: pd.Timestamp, split: pd.Times
 
 def get_features(
 	sequential_returns: int,
-	momentum_days: list[int],
 	ohlc_series: TimeSeries[OhlcRecord],
+	reference_ohlc_series: list[TimeSeries[OhlcRecord]],
 	times: list[pd.Timestamp],
 	x: npt.NDArray,
 	y: npt.NDArray
 ) -> None:
 	for i, time in enumerate(times):
-		count = max(sequential_returns + 1, max(momentum_days) if len(momentum_days) > 0 else 0)
+		count = sequential_returns + 1
 		records = ohlc_series.get(time, count=count)
 		tomorrow = ohlc_series.get(time + pd.Timedelta(days=1), right=True)
 		today = records[0]
-		features = [get_rate_of_change(a.close, b.close) for a, b in zip(records[:sequential_returns], records[1:sequential_returns + 1])]
-		for days in momentum_days:
-			feature = get_rate_of_change(today.close, records[days - 1].close)
-			features.append(feature)
+		features = get_sequential_returns_features(sequential_returns, records)
+		for reference in reference_ohlc_series:
+			records = reference.get(time, count=count)
+			reference_features = get_sequential_returns_features(sequential_returns, records)
+			features += reference_features
 		for day in range(5):
 			features.append(1 if time.day_of_week == day else 0)
 		label = get_rate_of_change(tomorrow.close, today.close)
 		x[i] = features
 		y[i] = label
+
+def get_sequential_returns_features(sequential_returns: int, records: list[OhlcRecord]) -> list[float]:
+	features = [get_rate_of_change(a.close, b.close) for a, b in zip(records[:sequential_returns], records[1:sequential_returns + 1])]
+	return features

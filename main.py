@@ -4,7 +4,7 @@ import pandas as pd
 from generate_contracts import generate_all_contracts, generate_contract
 from chart import render_chart
 from seasonality import analyze_seasonality
-from regression import analyze_momentum
+from regression import perform_regression
 
 def get_date_argument(date_string: str) -> pd.Timestamp:
 	pd.to_datetime(date_string, format="%Y-%m-%d", errors="raise")
@@ -24,13 +24,20 @@ seasonality_help = "Analyze seasonality of the specified symbols\n"
 seasonality_help += "Requires the use of --start, --split and --end"
 group.add_argument("--seasonality", metavar="SYMBOLS", nargs="*", help=seasonality_help)
 
-momentum_help = "Perform momentum regression test using the specified symbols\n"
-momentum_help += "Requires the use of --start, --split and --end"
-group.add_argument("--momentum", metavar="SYMBOLS", nargs="*", help=momentum_help)
+regression_help = "Perform regression test using the specified symbols\n"
+regression_help += "Requires the use of --start, --split and --end"
+group.add_argument("--regression", metavar="SYMBOLS", nargs="*", help=regression_help)
 
 parser.add_argument("--start", metavar="DATE", type=get_date_argument, help="Restrict data to be read to after this date")
 parser.add_argument("--split", metavar="DATE", type=get_date_argument, help="Date at which to split in-sample and out-of-sample data")
 parser.add_argument("--end", metavar="DATE", type=get_date_argument, help="Read no data after this date")
+
+args, _ = parser.parse_known_args()
+if args.regression is not None:
+	reduction_group = parser.add_mutually_exclusive_group()
+	reduction_group.add_argument("--pca", metavar="FEATURES", type=int, help="Apply PCA dimensionality reduction")
+	reduction_group.add_argument("--select-k-best", metavar="FEATURES", type=int, help="Apply dimensionality reduction using mutual information regression")
+
 args = parser.parse_args()
 if args.generate_all:
 	generate_all_contracts()
@@ -49,12 +56,15 @@ elif args.seasonality is not None:
 	split: pd.Timestamp = args.split
 	end: pd.Timestamp = args.end
 	analyze_seasonality(symbols, start, split, end)
-elif args.momentum is not None:
+elif args.regression is not None:
 	assert args.start is not None and args.split is not None and args.end is not None
-	symbols: list[str] = args.momentum
+	symbols: list[str] = args.regression
 	start: pd.Timestamp = args.start
 	split: pd.Timestamp = args.split
 	end: pd.Timestamp = args.end
-	analyze_momentum(symbols, start, split, end)
+	pca: int | None = args.pca
+	select_k_best: int | None = args.select_k_best
+	assert not pca or not select_k_best
+	perform_regression(symbols, start, split, end, pca, select_k_best)
 else:
 	parser.print_help()
