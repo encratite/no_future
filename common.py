@@ -1,26 +1,24 @@
+from concurrent.futures import ProcessPoolExecutor, as_completed
 import os
-import sysconfig
-from concurrent.futures import ThreadPoolExecutor
-from typing import Any, Iterable, Iterator
 from math import log
+from typing import Any, Callable, Iterable, TypeVar
 
 from colorama import Fore, Style
 from tabulate import tabulate
+from tqdm import tqdm
 
 from configuration import Configuration
 from ohlc import OhlcRecord
 from series import TimeSeries
 
-def has_free_threading() -> bool:
-	return sysconfig.get_config_vars()["Py_GIL_DISABLED"] == 1
+A = TypeVar("A")
+B = TypeVar("B")
 
-def execute_thread_pool(fn: Any, *iterable: Iterable) -> Iterator[Any]:
-	if has_free_threading():
-		thread_count = os.cpu_count()
-	else:
-		thread_count = 1
-	with ThreadPoolExecutor(max_workers=thread_count) as executor:
-		return executor.map(fn, *iterable)
+def execute_pool(fn: Callable[[A], B], iterables: Iterable[A]) -> list[B]:
+	with ProcessPoolExecutor() as executor:
+		futures = [executor.submit(fn, x) for x in iterables]
+		output = list(tqdm(as_completed(futures), total=len(futures), colour="green"))
+	return output
 
 def get_performance_string(performance: float) -> str:
 	return format_percentage(performance - 1)

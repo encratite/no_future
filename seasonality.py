@@ -6,7 +6,7 @@ from typing import Final
 
 import pandas as pd
 
-from common import execute_thread_pool, format_percentage, print_table, read_ohlc_series, get_rate_of_change
+from common import format_percentage, print_table, read_ohlc_series, get_rate_of_change
 
 TABLE_CONFIGS = [
 	("Symbol (Old)   ", lambda x: x.old_stats),
@@ -54,8 +54,7 @@ class SymbolStats:
 
 def analyze_seasonality(symbols: list[str], start: pd.Timestamp, split: pd.Timestamp, end: pd.Timestamp) -> None:
 	assert start < split < end
-	stats_iterable = execute_thread_pool(analyze_seasonality_by_symbol, symbols, repeat(start), repeat(split), repeat(end))
-	stats = list(stats_iterable)
+	stats = [analyze_seasonality_by_symbol(symbol, start, split, end) for symbol in symbols]
 	print_day_of_week_stats(stats)
 	print_monthly_stats(stats)
 	print_early_late_monthly_stats(stats)

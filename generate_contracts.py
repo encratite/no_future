@@ -1,23 +1,22 @@
 import glob
 import os
 import re
-from copy import copy
 from collections import defaultdict
+from copy import copy
+import time
 from typing import Any, cast
-from concurrent.futures import ThreadPoolExecutor
 
 import pandas as pd
 
+from common import execute_pool
 from configuration import Configuration
 from contract_configuration import get_contract_filter
 from contract_filter import ContractFilter
 from globex import GlobexCode
 from ohlc import OhlcRecord
-from common import execute_thread_pool
 
 def generate_contract(symbol: str) -> None:
 	input_path = os.path.join(Configuration.BARCHART_DIRECTORY, f"{symbol}.D1.csv")
-	print(f"Processing {input_path}")
 	df: pd.DataFrame = pd.read_csv(input_path, parse_dates=["time"])
 	contracts_per_day: dict[pd.Timestamp, list[OhlcRecord]] = defaultdict(list)
 	contract_ranges: dict[GlobexCode, tuple[pd.Timestamp, pd.Timestamp]] = {}
@@ -45,7 +44,11 @@ def generate_contract(symbol: str) -> None:
 	# Technically redundant, but make sure the records are sorted by time either way
 	time_records = sorted(time_records, key=get_time_key)
 	calculate_rollover_offsets(time_records, contract_ranges, record_offsets, contract_filter)
-	write_contract_files(symbol, record_offsets)
+	if contract_filter is not None and contract_filter.exchange_symbol is not None:
+		exchange_symbol = contract_filter.exchange_symbol
+	else:
+		exchange_symbol = symbol
+	write_contract_files(exchange_symbol, record_offsets)
 
 def get_time_key(time_records: tuple[pd.Timestamp, list[OhlcRecord]]) -> pd.Timestamp:
 	time, _records = time_records
@@ -165,7 +168,6 @@ def write_contract_files(symbol: str, record_offsets: dict[str, list[tuple[OhlcR
 		df = pd.DataFrame(df_dict)
 		output_path = os.path.join(Configuration.FEATHER_DIRECTORY, f"{symbol}.{f_key}.feather")
 		df.to_feather(output_path)
-		print(f"Wrote {output_path}")
 
 def is_rollover_target(
 	record: OhlcRecord,
@@ -193,5 +195,4 @@ def generate_all_contracts():
 			continue
 		symbol = match[0]
 		symbols.append(symbol)
-	symbols = sorted(symbols)
-	execute_thread_pool(generate_contract, symbols)
+	execute_pool(generate_contract, symbols)
