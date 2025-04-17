@@ -6,6 +6,7 @@ class Asset:
 	tick_value: float
 	margin: float
 	overnight_margin: bool
+	margin_close: float | None
 	broker_fee: float
 	exchange_fee: float
 
@@ -28,5 +29,6 @@ class Asset:
 		self.tick_value = tick_value
 		self.margin = margin
 		self.overnight_margin = overnight_margin
+		self.margin_close = None
 		self.broker_fee = broker_fee
 		self.exchange_fee = exchange_fee
