@@ -1,7 +1,7 @@
 from argparse import ArgumentParser
 import pandas as pd
 
-from generate_contracts import generate_all_contracts, generate_contract
+from generate import generate_all_contracts, generate_contract
 from chart import render_chart
 from seasonality import analyze_seasonality
 

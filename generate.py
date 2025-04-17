@@ -10,8 +10,8 @@ import pandas as pd
 
 from common import execute_pool
 from configuration import Configuration
-from contract_configuration import get_contract_filter
-from contract_filter import ContractFilter
+from contracts import get_contract_filter
+from filter import ContractFilter
 from globex import GlobexCode
 from ohlc import OhlcRecord
 

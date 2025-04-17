@@ -1,6 +1,6 @@
 from typing import Final
 
-from contract_filter import ContractFilter
+from filter import ContractFilter
 
 def get_contract_filter(barchart_symbol: str) -> ContractFilter | None:
 	if barchart_symbol in CONTRACT_CONFIGURATION:
