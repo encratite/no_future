@@ -4,6 +4,7 @@ import pandas as pd
 from generate import generate_all_contracts, generate_contract
 from chart import render_chart
 from seasonality import analyze_seasonality
+from momentum import analyze_momentum
 
 def get_date_argument(date_string: str) -> pd.Timestamp:
 	pd.to_datetime(date_string, format="%Y-%m-%d", errors="raise")
@@ -28,6 +29,8 @@ def main() -> None:
 	parser.add_argument("--split", metavar="DATE", type=get_date_argument, help="Date at which to split in-sample and out-of-sample data")
 	parser.add_argument("--end", metavar="DATE", type=get_date_argument, help="Read no data after this date")
 
+	parser.add_argument("--momentum", metavar="SYMBOL", help="Analyze momentum correlation of a symbol")
+
 	args = parser.parse_args()
 	if args.generate_all:
 		generate_all_contracts()
@@ -46,6 +49,9 @@ def main() -> None:
 		split: pd.Timestamp = args.split
 		end: pd.Timestamp = args.end
 		analyze_seasonality(symbols, start, split, end)
+	elif args.momentum is not None:
+		symbol = args.momentum
+		analyze_momentum(symbol)
 	else:
 		parser.print_help()
 
