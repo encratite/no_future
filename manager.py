@@ -18,13 +18,16 @@ class AssetManager:
 
 	def __init__(self):
 		self._time_series = {}
+		self._currencies = {}
 		self._assets = {}
 		self._load_time_series()
 		self._load_currencies()
 		self._load_assets()
 
-	def get_record(self, symbol: str, time: pd.Timestamp) -> OhlcRecord:
+	def get_record(self, symbol: str, time: pd.Timestamp) -> OhlcRecord | None:
 		symbol = self._translate_symbol(symbol)
+		if symbol not in self._time_series:
+			return None
 		time_series = self._time_series[symbol]
 		record = time_series.get(time)
 		return record
@@ -64,9 +67,11 @@ class AssetManager:
 	def _load_assets(self) -> None:
 		assets, margin_date = get_assets()
 		for asset in assets:
-			self._assets[asset.symbol] = asset
 			margin_record = self.get_record(asset.symbol, margin_date)
+			if margin_record is None:
+				continue
 			asset.margin_close = margin_record.close
+			self._assets[asset.symbol] = asset
 
 	def _load_currencies(self) -> None:
 		path = os.path.join(Configuration.BARCHART_DIRECTORY, "^EURUSD.D1.csv")
@@ -79,7 +84,6 @@ class AssetManager:
 			record.high = 1 / record.high
 			record.low = 1 / record.low
 			record.close = 1 / record.close
-			record.unadjusted_close = 1 / record.unadjusted_close
 		self._currencies["JPY"] = usd_jpy
 
 	@staticmethod

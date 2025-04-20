@@ -5,6 +5,7 @@ from generate import generate_all_contracts, generate_contract
 from chart import render_chart
 from seasonality import analyze_seasonality
 from momentum import analyze_momentum
+from backtest_test import perform_backtest
 
 def get_date_argument(date_string: str) -> pd.Timestamp:
 	pd.to_datetime(date_string, format="%Y-%m-%d", errors="raise")
@@ -29,7 +30,11 @@ def main() -> None:
 	parser.add_argument("--split", metavar="DATE", type=get_date_argument, help="Date at which to split in-sample and out-of-sample data")
 	parser.add_argument("--end", metavar="DATE", type=get_date_argument, help="Read no data after this date")
 
-	parser.add_argument("--momentum", metavar="SYMBOL", help="Analyze momentum correlation of a symbol")
+	parser.add_argument("--momentum", metavar="SYMBOLS", nargs="*", help="Analyze momentum correlation of a symbol")
+
+	backtest_help = "Perform a backtest using the strategies defined in backtest_test.py\n"
+	backtest_help += "Requires the use of --start and --end"
+	group.add_argument("--backtest", action="store_true", help=backtest_help)
 
 	args = parser.parse_args()
 	if args.generate_all:
@@ -50,8 +55,13 @@ def main() -> None:
 		end: pd.Timestamp = args.end
 		analyze_seasonality(symbols, start, split, end)
 	elif args.momentum is not None:
-		symbol = args.momentum
-		analyze_momentum(symbol)
+		symbols = args.momentum
+		analyze_momentum(symbols)
+	elif args.backtest:
+		assert args.start is not None and args.end is not None
+		start: pd.Timestamp = args.start
+		end: pd.Timestamp = args.end
+		perform_backtest(start, end)
 	else:
 		parser.print_help()
 
