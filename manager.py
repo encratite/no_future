@@ -1,6 +1,7 @@
 from glob import glob
 import os
 import re
+from typing import cast
 
 import pandas as pd
 
@@ -12,12 +13,14 @@ from series import TimeSeries
 
 class AssetManager:
 	_time_series: dict[str, TimeSeries[OhlcRecord]]
+	_currencies: dict[str, TimeSeries[OhlcRecord]]
 	_assets: dict[str, Asset]
 
 	def __init__(self):
 		self._time_series = {}
 		self._assets = {}
 		self._load_time_series()
+		self._load_currencies()
 		self._load_assets()
 
 	def get_record(self, symbol: str, time: pd.Timestamp) -> OhlcRecord:
@@ -35,6 +38,10 @@ class AssetManager:
 	def get_series(self, symbol: str) -> TimeSeries[OhlcRecord]:
 		symbol = self._translate_symbol(symbol)
 		return self._time_series[symbol]
+
+	def get_currency(self, currency: str, time: pd.Timestamp) -> float:
+		record = self._currencies[currency].get(time)
+		return record.close
 
 	def get_asset(self, symbol: str) -> Asset:
 		pattern = re.compile("^[^.]+")
@@ -60,6 +67,20 @@ class AssetManager:
 			self._assets[asset.symbol] = asset
 			margin_record = self.get_record(asset.symbol, margin_date)
 			asset.margin_close = margin_record.close
+
+	def _load_currencies(self) -> None:
+		path = os.path.join(Configuration.BARCHART_DIRECTORY, "^EURUSD.D1.csv")
+		self._currencies["EUR"] = TimeSeries.read_ohlc_csv(path)
+		path = os.path.join(Configuration.BARCHART_DIRECTORY, "^USDJPY.D1.csv")
+		usd_jpy = TimeSeries.read_ohlc_csv(path)
+		for record in usd_jpy.values():
+			record = cast(OhlcRecord, record)
+			record.open = 1 / record.open
+			record.high = 1 / record.high
+			record.low = 1 / record.low
+			record.close = 1 / record.close
+			record.unadjusted_close = 1 / record.unadjusted_close
+		self._currencies["JPY"] = usd_jpy
 
 	@staticmethod
 	def _translate_symbol(symbol: str) -> str:

@@ -3,9 +3,9 @@ from collections import defaultdict
 import pandas as pd
 
 from asset import Asset
-from assets import get_asset, ASSET_MARGIN_DATE
 from backtest_configuration import BacktestConfiguration
 from backtest_interface import BacktestInterface
+from configuration import Configuration
 from manager import AssetManager
 from position import Position, PositionSide
 from ohlc import OhlcRecord
@@ -48,9 +48,6 @@ class Backtest:
 					signals[symbol] += strategy.weight * signal
 			self._rebalance(signals)
 
-	def _initialize_assets(self) -> None:
-
-
 	def _rebalance(self, signals: defaultdict[str, float]) -> None:
 		for position in self._positions:
 			symbol = position.symbol
@@ -74,7 +71,25 @@ class Backtest:
 		current_record = self._asset_manager.get_record(symbol, self._time)
 		asset = self._asset_manager.get_asset(symbol)
 		maintenance_margin = self._get_margin(current_record, asset)
-		raise NotImplementedError()
+		maintenance_margin, forex_fee = self._convert_currency(maintenance_margin, asset.currency)
+		initial_margin = Configuration.INITIAL_MARGIN_RATIO * maintenance_margin
+		fees = forex_fee + asset.broker_fee + asset.exchange_fee
+		if initial_margin + fees >= self._cash:
+			raise Exception(f"Not enough cash to open a position with {count} contract(s) of {symbol} with an initial margin requirement of ${initial_margin:.2}")
+		cost = count * maintenance_margin + fees
+		self._cash -= cost
+		self._fees += fees
+		ask = current_record.close + asset.spread * asset.tick_size
+		position = Position(
+			symbol,
+			asset,
+			count,
+			side,
+			ask,
+			maintenance_margin,
+			self._time
+		)
+		self._positions.append(position)
 
 	def _close_position(self, symbol: str, count: int | None = None) -> None:
 		assert count is None or count > 0
@@ -90,6 +105,14 @@ class Backtest:
 			side = None
 		return count, side
 
-	def _get_margin(self, current_record: OhlcRecord, asset: Asset) -> float:
+	@staticmethod
+	def _get_margin(current_record: OhlcRecord, asset: Asset) -> float:
 		margin = current_record.close / asset.margin_close * asset.margin
 		return margin
+
+	def _convert_currency(self, amount: float, currency: str) -> tuple[float, float]:
+		if currency == "USD":
+			return amount, 0
+		exchange_rate = self._asset_manager.get_currency(currency, self._time)
+		exchanged_amount = exchange_rate * amount / Configuration.FOREX_SPREAD
+		return exchanged_amount, Configuration.FOREX_ORDER_FEE

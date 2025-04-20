@@ -9,6 +9,7 @@ class Asset:
 	margin_close: float | None
 	broker_fee: float
 	exchange_fee: float
+	spread: int
 
 	def __init__(
 		self,
@@ -20,7 +21,8 @@ class Asset:
 		margin: float,
 		overnight_margin: bool,
 		broker_fee: float,
-		exchange_fee: float
+		exchange_fee: float,
+		spread: int
 	):
 		self.symbol = symbol
 		self.name = name
@@ -32,3 +34,4 @@ class Asset:
 		self.margin_close = None
 		self.broker_fee = broker_fee
 		self.exchange_fee = exchange_fee
+		self.spread = spread

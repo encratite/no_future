@@ -32,14 +32,14 @@ class TimeSeries(Generic[T]):
 		return series
 
 	@staticmethod
+	def read_ohlc_csv(path: str) -> TimeSeries[OhlcRecord]:
+		df = pd.read_csv(path)
+		return TimeSeries._get_time_series(df)
+
+	@staticmethod
 	def read_ohlc_feather(path: str) -> TimeSeries[OhlcRecord]:
 		df = pd.read_feather(path)
-		data = SortedDict()
-		for row in df.itertuples(index=False):
-			ohlc = OhlcRecord(row)
-			data[ohlc.time] = ohlc
-		series = TimeSeries(data)
-		return series
+		return TimeSeries._get_time_series(df)
 
 	def get(self, time: pd.Timestamp, count: int | None = None, offsets: list[int] | None = None, right: bool = False) -> list[Generic[T]] | Generic[T]:
 		assert count is None or offsets is None
@@ -77,3 +77,12 @@ class TimeSeries(Generic[T]):
 
 	def __iter__(self) -> Iterator[pd.Timestamp]:
 		return self._data.keys().__iter__()
+
+	@staticmethod
+	def _get_time_series(df: pd.DataFrame) -> TimeSeries[OhlcRecord]:
+		data = SortedDict()
+		for row in df.itertuples(index=False):
+			ohlc = OhlcRecord(row)
+			data[ohlc.time] = ohlc
+		series = TimeSeries(data)
+		return series
