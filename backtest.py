@@ -3,15 +3,17 @@ from collections import defaultdict
 import matplotlib.pyplot as plt
 import pandas as pd
 import seaborn as sns
-from matplotlib.ticker import StrMethodFormatter, PercentFormatter
+from matplotlib.ticker import StrMethodFormatter
 
 from asset import Asset
 from backtest_configuration import BacktestConfiguration
 from backtest_interface import BacktestInterface
+from backtest_result import BacktestResult
+from common import format_percentage, format_money, format_ratio, print_table
 from configuration import Configuration
 from manager import AssetManager
-from position import Position, PositionSide
 from ohlc import OhlcRecord
+from position import Position, PositionSide
 from strategy import Strategy
 
 class Backtest:
@@ -48,7 +50,7 @@ class Backtest:
 		self._max_drawdown = 0
 		self._drawdown = []
 
-	def run(self) -> None:
+	def run(self) -> BacktestResult:
 		for time in self._time_series:
 			self._time = time
 			signals: defaultdict[str, float] = defaultdict(float)
@@ -59,6 +61,9 @@ class Backtest:
 					signals[symbol] += strategy.weight * signal
 			self._rebalance(signals)
 			self._update_equity_curve()
+		self._close_all_positions()
+		result = self._get_result()
+		return result
 
 	def plot_equity_curve(self) -> None:
 		id_var = "date"
@@ -108,6 +113,32 @@ class Backtest:
 		plt.gca().yaxis.set_major_formatter(formatter)
 		plt.show()
 		plt.close()
+
+	@staticmethod
+	def print_result(result: BacktestResult) -> None:
+		table = [
+			["Net Profit", format_money(result.net_profit)],
+			["Annual Average Profit", format_money(result.annual_average_profit)],
+			["Starting Capital", format_money(result.starting_capital)],
+			["Total Return", format_percentage(result.total_return)],
+			["Compound Annual Growth Rate", format_percentage(result.compound_annual_growth_rate)],
+			["Sharpe Ratio", format_ratio(result.sharpe_ratio)],
+			["Sortino Ratio", format_ratio(result.sortino_ratio)],
+			["Max Drawdown", format_percentage(result.max_drawdown)]
+		]
+		print_table(table, False)
+
+	def _get_result(self) -> BacktestResult:
+		result = BacktestResult(
+			self._configuration.start,
+			self._configuration.end,
+			self._equity_curve,
+			self._max_drawdown,
+			self._configuration.initial_cash,
+			self._cash,
+			self._asset_manager
+		)
+		return result
 
 	def _rebalance(self, signals: defaultdict[str, float]) -> None:
 		for position in self._positions:
@@ -177,6 +208,10 @@ class Backtest:
 				position.count = new_count
 			else:
 				self._positions.remove(position)
+
+	def _close_all_positions(self) -> None:
+		for position in list(self._positions):
+			self._close_position(position.symbol, position.count)
 
 	def _get_position_info(self, symbol: str) -> tuple[int, PositionSide | None]:
 		matching_positions = [x for x in self._positions if x.symbol == symbol]

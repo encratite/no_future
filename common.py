@@ -31,10 +31,26 @@ def format_percentage(percentage: float) -> str:
 		output = f"{Fore.RED}{output}{Style.RESET_ALL}"
 	return output
 
-def print_table(table: list[list[Any]]):
+def format_money(amount: float) -> str:
+	output = f"${amount:,.2f}"
+	if amount < 0:
+		output = f"{Fore.RED}({amount}){Style.RESET_ALL}"
+	return output
+
+def format_ratio(ratio: float) -> str:
+	ratio_string = f"{ratio:.2f}"
+	if ratio >= 1:
+		return f"{Fore.GREEN}{ratio_string}{Style.RESET_ALL}"
+	elif ratio >= 0:
+		return ratio_string
+	else:
+		return f"{Fore.RED}{ratio_string}{Style.RESET_ALL}"
+
+def print_table(table: list[list[Any]], headers: bool = True):
 	numeric_columns = len(table[0]) - 1
 	column_alignment = ("left",) + numeric_columns * ("right",)
-	table_string = tabulate(table, headers="firstrow", tablefmt="simple_outline", disable_numparse=True, colalign=column_alignment)
+	headers = "firstrow" if headers else []
+	table_string = tabulate(table, headers=headers, tablefmt="simple_outline", disable_numparse=True, colalign=column_alignment)
 	print(table_string)
 	print("")
 

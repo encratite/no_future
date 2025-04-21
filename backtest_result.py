@@ -1,0 +1,77 @@
+from typing import Final
+from statistics import mean, stdev
+from math import sqrt
+
+import pandas as pd
+
+from manager import AssetManager
+
+class BacktestResult:
+	net_profit: float
+	annual_average_profit: float
+	starting_capital: float
+	total_return: float
+	compound_annual_growth_rate: float
+	max_drawdown: float
+	sharpe_ratio: float
+	sortino_ratio: float
+
+	def __init__(
+		self,
+		start: pd.Timestamp,
+		end: pd.Timestamp,
+		equity_curve: list[float],
+		max_drawdown: float,
+		initial_cash: float,
+		final_cash: float,
+		asset_manager: AssetManager
+	):
+		days_per_year: Final[float] = 365.25
+
+		self.net_profit = final_cash - initial_cash
+		years = (end - start) / pd.Timedelta(days=days_per_year)
+		self.annual_average_profit = self.net_profit / years
+		self.starting_capital = initial_cash
+		return_ratio = final_cash / initial_cash
+		self.total_return = return_ratio - 1
+		self.compound_annual_growth_rate = return_ratio**(1 / years) - 1
+		self.max_drawdown = max_drawdown
+		risk_free_rate = self._get_risk_free_rate(start, end, asset_manager)
+		sharpe_ratio, sortino_ratio = self._get_ratios(equity_curve, risk_free_rate)
+		self.sharpe_ratio = sharpe_ratio
+		self.sortino_ratio = sortino_ratio
+
+	@staticmethod
+	def _get_risk_free_rate(
+		start: pd.Timestamp,
+		end: pd.Timestamp,
+		asset_manager: AssetManager
+	) -> float:
+		time = start
+		rates = []
+		while time < end:
+			rate = asset_manager.get_risk_free_rate(time)
+			rates.append(rate)
+			time += pd.Timedelta(days=1)
+		mean_rate = mean(rates)
+		return mean_rate
+
+	@staticmethod
+	def _get_ratios(equity_curve: list[float], risk_free_rate: float) -> tuple[float, float]:
+		trading_days_per_year: Final[int] = 252
+
+		daily_returns = [today / yesterday - 1 for today, yesterday in zip(equity_curve[1:], equity_curve)]
+		mean_daily_returns = mean(daily_returns)
+		daily_standard_deviation = stdev(daily_returns)
+		mean_annual_returns = trading_days_per_year * mean_daily_returns
+		standard_deviation_factor = sqrt(trading_days_per_year)
+		standard_deviation = standard_deviation_factor * daily_standard_deviation
+		excess_returns = mean_annual_returns - risk_free_rate
+		sharpe_ratio = excess_returns / standard_deviation
+
+		downside_daily_returns = [x for x in daily_returns if x < 0]
+		daily_downside_standard_deviation = stdev(downside_daily_returns)
+		downside_standard_deviation = standard_deviation_factor * daily_downside_standard_deviation
+		sortino_ratio = excess_returns / downside_standard_deviation
+
+		return sharpe_ratio, sortino_ratio

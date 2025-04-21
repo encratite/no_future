@@ -13,5 +13,6 @@ def perform_backtest(start: pd.Timestamp, end: pd.Timestamp) -> None:
 	configuration = BacktestConfiguration(start, end, 100_000)
 	asset_manager = AssetManager()
 	backtest = Backtest(strategies, configuration, asset_manager)
-	backtest.run()
+	result = backtest.run()
+	backtest.print_result(result)
 	backtest.plot_equity_curve()

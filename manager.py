@@ -15,6 +15,7 @@ class AssetManager:
 	_time_series: dict[str, TimeSeries[OhlcRecord]]
 	_currencies: dict[str, TimeSeries[OhlcRecord]]
 	_assets: dict[str, Asset]
+	_t_bills: TimeSeries[float]
 
 	def __init__(self):
 		self._time_series = {}
@@ -23,6 +24,7 @@ class AssetManager:
 		self._load_time_series()
 		self._load_currencies()
 		self._load_assets()
+		self._load_t_bills()
 
 	def get_record(self, symbol: str, time: pd.Timestamp) -> OhlcRecord | None:
 		symbol = self._translate_symbol(symbol)
@@ -55,6 +57,10 @@ class AssetManager:
 		asset = self._assets[truncated_symbol]
 		return asset
 
+	def get_risk_free_rate(self, time: pd.Timestamp) -> float:
+		rate = self._t_bills.get(time) / 100
+		return rate
+
 	def _load_time_series(self) -> None:
 		pattern = os.path.join(Configuration.FEATHER_DIRECTORY, "*.feather")
 		paths = glob(pattern)
@@ -85,6 +91,10 @@ class AssetManager:
 			record.low = 1 / record.low
 			record.close = 1 / record.close
 		self._currencies["JPY"] = usd_jpy
+
+	def _load_t_bills(self) -> None:
+		path = os.path.join(Configuration.FRED_DIRECTORY, "TB3MS.csv")
+		self._t_bills = TimeSeries.read_csv(path, True)
 
 	@staticmethod
 	def _translate_symbol(symbol: str) -> str:
