@@ -13,8 +13,8 @@ class BacktestResult:
 	total_return: float
 	compound_annual_growth_rate: float
 	max_drawdown: float
-	sharpe_ratio: float
-	sortino_ratio: float
+	sharpe_ratio: float | None
+	sortino_ratio: float | None
 
 	def __init__(
 		self,
@@ -57,7 +57,7 @@ class BacktestResult:
 		return mean_rate
 
 	@staticmethod
-	def _get_ratios(equity_curve: list[float], risk_free_rate: float) -> tuple[float, float]:
+	def _get_ratios(equity_curve: list[float], risk_free_rate: float) -> tuple[float | None, float | None]:
 		trading_days_per_year: Final[int] = 252
 
 		daily_returns = [today / yesterday - 1 for today, yesterday in zip(equity_curve[1:], equity_curve)]
@@ -67,11 +67,12 @@ class BacktestResult:
 		standard_deviation_factor = sqrt(trading_days_per_year)
 		standard_deviation = standard_deviation_factor * daily_standard_deviation
 		excess_returns = mean_annual_returns - risk_free_rate
-		sharpe_ratio = excess_returns / standard_deviation
+		if standard_deviation == 0:
+			return None, None
 
+		sharpe_ratio = excess_returns / standard_deviation
 		downside_daily_returns = [x for x in daily_returns if x < 0]
 		daily_downside_standard_deviation = stdev(downside_daily_returns)
 		downside_standard_deviation = standard_deviation_factor * daily_downside_standard_deviation
 		sortino_ratio = excess_returns / downside_standard_deviation
-
 		return sharpe_ratio, sortino_ratio

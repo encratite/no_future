@@ -34,10 +34,12 @@ def format_percentage(percentage: float) -> str:
 def format_money(amount: float) -> str:
 	output = f"${amount:,.2f}"
 	if amount < 0:
-		output = f"{Fore.RED}({amount}){Style.RESET_ALL}"
+		output = f"{Fore.RED}(${- amount:,.2f}){Style.RESET_ALL}"
 	return output
 
-def format_ratio(ratio: float) -> str:
+def format_ratio(ratio: float | None) -> str:
+	if ratio is None:
+		return "-"
 	ratio_string = f"{ratio:.2f}"
 	if ratio >= 1:
 		return f"{Fore.GREEN}{ratio_string}{Style.RESET_ALL}"

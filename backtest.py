@@ -4,6 +4,7 @@ import matplotlib.pyplot as plt
 import pandas as pd
 import seaborn as sns
 from matplotlib.ticker import StrMethodFormatter
+from colorama import Fore, Style
 
 from asset import Asset
 from backtest_configuration import BacktestConfiguration
@@ -26,9 +27,11 @@ class Backtest:
 	_fees: float
 	_positions: list[Position]
 	_equity_curve: list[float]
+	_account_value: float
 	_max_account_value: float
 	_max_drawdown: float
 	_drawdown: list[float]
+	_terminated: bool
 
 	def __init__(
 		self,
@@ -46,24 +49,36 @@ class Backtest:
 		self._fees = 0
 		self._positions = []
 		self._equity_curve = []
+		self._account_value = self._cash
 		self._max_account_value = self._cash
 		self._max_drawdown = 0
 		self._drawdown = []
+		self._terminated = False
 
 	def run(self) -> BacktestResult:
+		assert self._terminated == False
 		for strategy in self._strategies:
 			strategy.reset()
 		trading_days = set(self._time_series)
 		for time in self._time_series:
 			self._time = time
 			signals: defaultdict[str, float] = defaultdict(float)
-			interface = BacktestInterface(time, trading_days, self._asset_manager)
+			interface = BacktestInterface(
+				time,
+				self._configuration.start,
+				self._configuration.end,
+				trading_days,
+				self._asset_manager
+			)
 			for strategy in self._strategies:
 				strategy_signals = strategy.get_signals(interface)
 				for symbol, signal in strategy_signals.items():
 					signals[symbol] += strategy.weight * signal
 			self._rebalance(signals)
 			self._update_equity_curve()
+			self._ruin_check()
+			if self._terminated:
+				break
 		self._close_all_positions()
 		result = self._get_result()
 		return result
@@ -159,7 +174,8 @@ class Backtest:
 			if delta_count > 0:
 				self._open_position(symbol, delta_count, signal_side)
 			elif delta_count < 0:
-				self._close_position(symbol, delta_count)
+				count = - delta_count
+				self._close_position(symbol, count)
 
 	def _update_equity_curve(self) -> None:
 		account_value = self._get_account_value()
@@ -168,8 +184,18 @@ class Backtest:
 		drawdown_percent = account_value / self._max_account_value - 1
 		if drawdown_percent < self._max_drawdown:
 			self._max_drawdown = drawdown_percent
+		self._account_value = account_value
 		self._equity_curve.append(account_value)
 		self._drawdown.append(drawdown)
+
+	def _ruin_check(self) -> None:
+		ratio = self._account_value / self._configuration.initial_cash
+		if ratio < Configuration.RUIN_RATIO:
+			print(f"Account value dropped to {Fore.RED}{ratio:.2f%}{Style.RESET_ALL}, terminating simulation prematurely")
+			print("Strategies in use by backtest:")
+			for i, strategy in enumerate(self._strategies):
+				print(f"{i + 1}. {strategy.name}")
+			self._terminated = True
 
 	@staticmethod
 	def _get_mean_spread(contracts: int, asset: Asset) -> float:
@@ -209,19 +235,27 @@ class Backtest:
 
 	def _close_position(self, symbol: str, count: int | None = None) -> None:
 		assert count is None or count > 0
-		while count > 0:
-			position = next((x for x in self._positions if x.symbol == symbol), None)
-			assert position is not None
-			close_count = min(position.count, count)
-			value, bid, fees = self._get_position_value(position, close_count)
-			self._cash += value
-			self._fees += fees
-			new_count = position.count - close_count
-			count -= close_count
-			if new_count > 0:
-				position.count = new_count
-			else:
+		if count is None:
+			matching_positions = [x for x in self._positions if x.symbol == symbol]
+			for position in matching_positions:
+				value, _bid, fees = self._get_position_value(position, position.count)
+				self._cash += value
+				self._fees += fees
 				self._positions.remove(position)
+		else:
+			while count > 0:
+				position = next((x for x in self._positions if x.symbol == symbol), None)
+				assert position is not None
+				close_count = min(position.count, count)
+				value, _bid, fees = self._get_position_value(position, close_count)
+				self._cash += value
+				self._fees += fees
+				new_count = position.count - close_count
+				count -= close_count
+				if new_count > 0:
+					position.count = new_count
+				else:
+					self._positions.remove(position)
 
 	def _close_all_positions(self) -> None:
 		for position in list(self._positions):

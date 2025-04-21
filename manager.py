@@ -98,7 +98,7 @@ class AssetManager:
 
 	@staticmethod
 	def _translate_symbol(symbol: str) -> str:
-		pattern = re.compile(r"\.F1$")
-		if pattern.match(symbol) is None:
+		pattern = re.compile(r"^[A-Z0-9]+$")
+		if pattern.match(symbol) is not None:
 			symbol += ".F1"
 		return symbol
