@@ -15,7 +15,8 @@ def get_assets() -> tuple[list[Asset], pd.Timestamp]:
 			True,
 			0.85,
 			1.40,
-			1
+			1,
+			10
 		),
 		Asset(
 			"MES",
@@ -27,7 +28,8 @@ def get_assets() -> tuple[list[Asset], pd.Timestamp]:
 			True,
 			0.25,
 			0.37,
-			1
+			1,
+			22
 		),
 		Asset(
 			"NQ",
@@ -39,6 +41,7 @@ def get_assets() -> tuple[list[Asset], pd.Timestamp]:
 			True,
 			0.85,
 			1.40,
+			3,
 			1
 		),
 		Asset(
@@ -51,7 +54,8 @@ def get_assets() -> tuple[list[Asset], pd.Timestamp]:
 			True,
 			0.25,
 			0.37,
-			1
+			2,
+			2
 		),
 		Asset(
 			"YM",
@@ -63,7 +67,8 @@ def get_assets() -> tuple[list[Asset], pd.Timestamp]:
 			True,
 			0.85,
 			1.40,
-			1
+			2,
+			3
 		),
 		Asset(
 			"MYM",
@@ -75,7 +80,8 @@ def get_assets() -> tuple[list[Asset], pd.Timestamp]:
 			True,
 			0.25,
 			0.37,
-			1
+			2,
+			3
 		),
 		Asset(
 			"RTY",
@@ -87,7 +93,8 @@ def get_assets() -> tuple[list[Asset], pd.Timestamp]:
 			True,
 			0.85,
 			1.40,
-			1
+			2,
+			6
 		),
 		Asset(
 			"M2K",
@@ -99,7 +106,8 @@ def get_assets() -> tuple[list[Asset], pd.Timestamp]:
 			True,
 			0.25,
 			0.37,
-			1
+			2,
+			2
 		),
 		Asset(
 			"FDAX",
@@ -111,6 +119,7 @@ def get_assets() -> tuple[list[Asset], pd.Timestamp]:
 			True,
 			0.85,
 			0.26,
+			29,
 			1
 		),
 		Asset(
@@ -123,6 +132,7 @@ def get_assets() -> tuple[list[Asset], pd.Timestamp]:
 			True,
 			0.85,
 			0.26,
+			15,
 			1
 		),
 		Asset(
@@ -135,6 +145,7 @@ def get_assets() -> tuple[list[Asset], pd.Timestamp]:
 			True,
 			0.85,
 			0.26,
+			15,
 			1
 		),
 		Asset(
@@ -147,7 +158,8 @@ def get_assets() -> tuple[list[Asset], pd.Timestamp]:
 			False,
 			0.50,
 			0.26,
-			1
+			3,
+			13
 		),
 		Asset(
 			"M6E",
@@ -159,7 +171,8 @@ def get_assets() -> tuple[list[Asset], pd.Timestamp]:
 			False,
 			0.15,
 			0.26,
-			1
+			3,
+			5
 		),
 		Asset(
 			"6J",
@@ -171,7 +184,8 @@ def get_assets() -> tuple[list[Asset], pd.Timestamp]:
 			False,
 			0.50,
 			0.26,
-			1
+			2,
+			20
 		),
 		Asset(
 			"6B",
@@ -183,18 +197,20 @@ def get_assets() -> tuple[list[Asset], pd.Timestamp]:
 			False,
 			0.50,
 			0.26,
-			1
+			2,
+			12
 		),
 		Asset(
 			"6S",
 			"Swiss Francs",
 			"USD",
-			0.0001,
+			0.00005,
 			12.5,
 			4284.56,
 			False,
 			0.50,
 			0.26,
+			2,
 			1
 		),
 		Asset(
@@ -207,6 +223,7 @@ def get_assets() -> tuple[list[Asset], pd.Timestamp]:
 			False,
 			0.15,
 			0.26,
+			2,
 			1
 		),
 		Asset(
@@ -219,7 +236,8 @@ def get_assets() -> tuple[list[Asset], pd.Timestamp]:
 			False,
 			0.85,
 			1.62,
-			1
+			6,
+			2
 		),
 		Asset(
 			"MGC",
@@ -231,6 +249,7 @@ def get_assets() -> tuple[list[Asset], pd.Timestamp]:
 			False,
 			0.25,
 			0.52,
+			1,
 			1
 		),
 		Asset(
@@ -243,7 +262,8 @@ def get_assets() -> tuple[list[Asset], pd.Timestamp]:
 			False,
 			0.85,
 			1.02,
-			1
+			4,
+			4
 		),
 		Asset(
 			"SIL",
@@ -255,7 +275,8 @@ def get_assets() -> tuple[list[Asset], pd.Timestamp]:
 			False,
 			0.25,
 			1.02,
-			1
+			4,
+			2
 		),
 		Asset(
 			"HG",
@@ -267,7 +288,8 @@ def get_assets() -> tuple[list[Asset], pd.Timestamp]:
 			False,
 			0.85,
 			1.62,
-			1
+			2,
+			2
 		),
 		Asset(
 			"MHG",
@@ -279,7 +301,8 @@ def get_assets() -> tuple[list[Asset], pd.Timestamp]:
 			False,
 			0.85,
 			0.52,
-			1
+			2,
+			2
 		),
 		Asset(
 			"PL",
@@ -291,7 +314,8 @@ def get_assets() -> tuple[list[Asset], pd.Timestamp]:
 			False,
 			0.85,
 			1.62,
-			1
+			34,
+			2
 		),
 		Asset(
 			"CL",
@@ -303,7 +327,8 @@ def get_assets() -> tuple[list[Asset], pd.Timestamp]:
 			False,
 			0.85,
 			1.52,
-			1
+			2,
+			5
 		),
 		Asset(
 			"MCL",
@@ -315,7 +340,8 @@ def get_assets() -> tuple[list[Asset], pd.Timestamp]:
 			False,
 			0.25,
 			0.52,
-			1
+			5,
+			5
 		),
 		Asset(
 			"BB",
@@ -327,7 +353,8 @@ def get_assets() -> tuple[list[Asset], pd.Timestamp]:
 			False,
 			0.85,
 			1.62,
-			1
+			2,
+			6
 		),
 		Asset(
 			"NG",
@@ -339,7 +366,8 @@ def get_assets() -> tuple[list[Asset], pd.Timestamp]:
 			False,
 			0.85,
 			1.62,
-			1
+			1,
+			5
 		),
 		Asset(
 			"MNG",
@@ -351,7 +379,8 @@ def get_assets() -> tuple[list[Asset], pd.Timestamp]:
 			False,
 			0.25,
 			0.52,
-			1
+			2,
+			3
 		),
 		Asset(
 			"ZS",
@@ -363,7 +392,8 @@ def get_assets() -> tuple[list[Asset], pd.Timestamp]:
 			False,
 			0.85,
 			2.12,
-			1
+			2,
+			15
 		),
 		Asset(
 			"XK",
@@ -375,7 +405,8 @@ def get_assets() -> tuple[list[Asset], pd.Timestamp]:
 			False,
 			0.85,
 			1.05,
-			1
+			2,
+			2
 		),
 		Asset(
 			"ZL",
@@ -387,7 +418,8 @@ def get_assets() -> tuple[list[Asset], pd.Timestamp]:
 			False,
 			0.85,
 			2.12,
-			1
+			2,
+			6
 		),
 		Asset(
 			"ZM",
@@ -399,7 +431,8 @@ def get_assets() -> tuple[list[Asset], pd.Timestamp]:
 			False,
 			0.85,
 			2.12,
-			1
+			1,
+			50
 		),
 		Asset(
 			"ZW",
@@ -411,7 +444,8 @@ def get_assets() -> tuple[list[Asset], pd.Timestamp]:
 			False,
 			0.85,
 			2.12,
-			1
+			2,
+			40
 		),
 		Asset(
 			"XW",
@@ -423,7 +457,8 @@ def get_assets() -> tuple[list[Asset], pd.Timestamp]:
 			False,
 			0.85,
 			2.12,
-			1
+			2,
+			7
 		),
 		Asset(
 			"ZC",
@@ -435,7 +470,8 @@ def get_assets() -> tuple[list[Asset], pd.Timestamp]:
 			False,
 			0.85,
 			2.12,
-			1
+			2,
+			140
 		),
 		Asset(
 			"XC",
@@ -447,7 +483,8 @@ def get_assets() -> tuple[list[Asset], pd.Timestamp]:
 			False,
 			0.85,
 			2.12,
-			1
+			2,
+			5
 		),
 		Asset(
 			"CT",
@@ -459,7 +496,8 @@ def get_assets() -> tuple[list[Asset], pd.Timestamp]:
 			False,
 			0.85,
 			2.12,
-			1
+			2,
+			2
 		),
 		Asset(
 			"SB",
@@ -471,7 +509,8 @@ def get_assets() -> tuple[list[Asset], pd.Timestamp]:
 			False,
 			0.85,
 			2.12,
-			1
+			1,
+			20
 		),
 		Asset(
 			"HE",
@@ -483,7 +522,8 @@ def get_assets() -> tuple[list[Asset], pd.Timestamp]:
 			False,
 			0.85,
 			2.12,
-			1
+			3,
+			2
 		),
 		Asset(
 			"LE",
@@ -495,7 +535,8 @@ def get_assets() -> tuple[list[Asset], pd.Timestamp]:
 			False,
 			0.85,
 			2.12,
-			1
+			3,
+			3
 		),
 		Asset(
 			"ZB",
@@ -507,7 +548,8 @@ def get_assets() -> tuple[list[Asset], pd.Timestamp]:
 			False,
 			0.85,
 			0.89,
-			1
+			1,
+			300
 		),
 		Asset(
 			"ZN",
@@ -519,7 +561,8 @@ def get_assets() -> tuple[list[Asset], pd.Timestamp]:
 			False,
 			0.85,
 			0.82,
-			1
+			1,
+			900
 		),
 		Asset(
 			"ZF",
@@ -531,7 +574,8 @@ def get_assets() -> tuple[list[Asset], pd.Timestamp]:
 			False,
 			0.85,
 			0.67,
-			1
+			1,
+			700
 		),
 		Asset(
 			"ZT",
@@ -543,7 +587,8 @@ def get_assets() -> tuple[list[Asset], pd.Timestamp]:
 			False,
 			0.85,
 			0.67,
-			1
+			1,
+			600
 		),
 		Asset(
 			"ZQ",
@@ -555,7 +600,8 @@ def get_assets() -> tuple[list[Asset], pd.Timestamp]:
 			False,
 			0.85,
 			0.98,
-			1
+			1,
+			12000
 		),
 		Asset(
 			"BT",
@@ -567,7 +613,8 @@ def get_assets() -> tuple[list[Asset], pd.Timestamp]:
 			False,
 			2.25,
 			2.52,
-			1
+			2,
+			3
 		),
 		Asset(
 			"MBT",
@@ -579,7 +626,8 @@ def get_assets() -> tuple[list[Asset], pd.Timestamp]:
 			False,
 			2.25,
 			2.52,
-			1
+			3,
+			2
 		),
 		Asset(
 			"MET",
@@ -591,7 +639,8 @@ def get_assets() -> tuple[list[Asset], pd.Timestamp]:
 			False,
 			0.20,
 			0.22,
-			1
+			2,
+			200
 		),
 		Asset(
 			"VX",
@@ -603,7 +652,8 @@ def get_assets() -> tuple[list[Asset], pd.Timestamp]:
 			False,
 			0.85,
 			1.51,
-			1
+			1,
+			80
 		),
 		Asset(
 			"VXM",
@@ -615,7 +665,8 @@ def get_assets() -> tuple[list[Asset], pd.Timestamp]:
 			False,
 			0.25,
 			0.22,
-			1
+			5,
+			400
 		),
 		Asset(
 			"V2TX",
@@ -627,7 +678,8 @@ def get_assets() -> tuple[list[Asset], pd.Timestamp]:
 			False,
 			0.85,
 			0.22,
-			1
+			3,
+			20
 		)
 	]
 	return assets, margin_date

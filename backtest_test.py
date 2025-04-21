@@ -10,7 +10,7 @@ def perform_backtest(start: pd.Timestamp, end: pd.Timestamp) -> None:
 	strategies = [
 		buy_and_hold
 	]
-	configuration = BacktestConfiguration(start, end, 100_000)
+	configuration = BacktestConfiguration(start, end, 500_000)
 	asset_manager = AssetManager()
 	backtest = Backtest(strategies, configuration, asset_manager)
 	result = backtest.run()

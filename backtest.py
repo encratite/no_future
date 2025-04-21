@@ -51,10 +51,13 @@ class Backtest:
 		self._drawdown = []
 
 	def run(self) -> BacktestResult:
+		for strategy in self._strategies:
+			strategy.reset()
+		trading_days = set(self._time_series)
 		for time in self._time_series:
 			self._time = time
 			signals: defaultdict[str, float] = defaultdict(float)
-			interface = BacktestInterface(time, self._asset_manager)
+			interface = BacktestInterface(time, trading_days, self._asset_manager)
 			for strategy in self._strategies:
 				strategy_signals = strategy.get_signals(interface)
 				for symbol, signal in strategy_signals.items():
@@ -168,6 +171,16 @@ class Backtest:
 		self._equity_curve.append(account_value)
 		self._drawdown.append(drawdown)
 
+	@staticmethod
+	def _get_mean_spread(contracts: int, asset: Asset) -> float:
+		base_spread_contracts = min(contracts, asset.depth)
+		ticks_sum = asset.spread * base_spread_contracts
+		remaining_contracts = contracts - base_spread_contracts
+		for i in range(remaining_contracts):
+			ticks_sum += asset.spread + i + 1
+		mean_spread = ticks_sum * asset.tick_value / contracts
+		return mean_spread
+
 	def _open_position(self, symbol: str, count: int, side: PositionSide) -> None:
 		assert count > 0
 		current_record = self._asset_manager.get_record(symbol, self._time)
@@ -181,7 +194,8 @@ class Backtest:
 		cost = count * maintenance_margin + fees
 		self._cash -= cost
 		self._fees += fees
-		ask = current_record.close + asset.spread * asset.tick_size
+		mean_spread = self._get_mean_spread(count, asset)
+		ask = current_record.close + mean_spread * asset.tick_size
 		position = Position(
 			symbol,
 			asset,
