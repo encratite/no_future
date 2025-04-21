@@ -1,9 +1,10 @@
+import re
 from abc import ABC, abstractmethod
 from enum import Enum
 from typing import Final
 
-import pandas as pd
 import numpy as np
+import pandas as pd
 
 from backtest_interface import BacktestInterface
 
@@ -30,6 +31,20 @@ class Strategy(ABC):
 
 	def reset(self) -> None:
 		pass
+
+	@staticmethod
+	def is_banned_symbol(symbol: str, time: pd.Timestamp) -> bool:
+		covid_start = pd.Timestamp("2020-03-01")
+		covid_end = pd.Timestamp("2021-03-01")
+		if covid_start <= time < covid_end:
+			banned_pattern = re.compile(r"^(CL|NG)(\.F.)?")
+			if banned_pattern.match(symbol) is not None:
+				return True
+		if symbol == "ZS" and time < pd.Timestamp("2009-04-01"):
+			return True
+		if symbol == "CT" and time < pd.Timestamp("2010-10-01"):
+			return True
+		return False
 
 class BuyAndHoldStrategy(Strategy):
 	_signals: dict[str, float]
@@ -75,13 +90,14 @@ class MomentumStrategy(Strategy):
 
 		signals: dict[str, float] = {}
 		for symbol in self._symbols:
-			today = interface.get_record(symbol)
 			days = self._months * days_per_month
 			lookback_time = interface.time - pd.Timedelta(days=days)
+			if self.is_banned_symbol(symbol, interface.time) or self.is_banned_symbol(symbol, lookback_time):
+				continue
+			today = interface.get_record(symbol)
 			lookback = interface.get_record(symbol, lookback_time)
 			if today.close <= 0 or lookback.close <= 0:
-				signals[symbol] = 0
-				continue
+				raise Exception(f"Invalid OHLC data: today.close = {today.close} ({interface.time}), lookback.close = {lookback.close} ({lookback_time})")
 			momentum_sign = np.sign(today.close / lookback.close - 1)
 			fractional_contracts = interface.get_contracts(symbol, today, self._target_notional_value)
 			signal = momentum_sign * fractional_contracts

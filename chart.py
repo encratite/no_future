@@ -12,6 +12,8 @@ def render_chart(symbols: list[str], start: pd.Timestamp | None, end: pd.Timesta
 	xlim_min_values = []
 	xlim_max_values = []
 	for symbol in symbols:
+		if ".F" not in symbol:
+			symbol += ".F1"
 		path = os.path.join(Configuration.FEATHER_DIRECTORY, f"{symbol}.feather")
 		df = pd.read_feather(path, columns=["time", "close"])
 		df["time"] = pd.to_datetime(df["time"])

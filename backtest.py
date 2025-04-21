@@ -3,8 +3,8 @@ from collections import defaultdict
 import matplotlib.pyplot as plt
 import pandas as pd
 import seaborn as sns
-from matplotlib.ticker import StrMethodFormatter
 from colorama import Fore, Style
+from matplotlib.ticker import StrMethodFormatter
 
 from asset import Asset
 from backtest_configuration import BacktestConfiguration
@@ -74,6 +74,9 @@ class Backtest:
 				strategy_signals = strategy.get_signals(interface)
 				for symbol, signal in strategy_signals.items():
 					signals[symbol] += strategy.weight * signal
+			for symbol in list(signals.keys()):
+				if signals[symbol] < 0.5:
+					del signals[symbol]
 			self._rebalance(signals)
 			self._update_equity_curve()
 			self._ruin_check()
@@ -191,7 +194,7 @@ class Backtest:
 	def _ruin_check(self) -> None:
 		ratio = self._account_value / self._configuration.initial_cash
 		if ratio < Configuration.RUIN_RATIO:
-			print(f"Account value dropped to {Fore.RED}{ratio:.2f%}{Style.RESET_ALL}, terminating simulation prematurely")
+			print(f"Account value dropped to {Fore.RED}{ratio:.2%}{Style.RESET_ALL}, terminating simulation prematurely")
 			print("Strategies in use by backtest:")
 			for i, strategy in enumerate(self._strategies):
 				print(f"{i + 1}. {strategy.name}")
