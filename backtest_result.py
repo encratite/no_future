@@ -61,6 +61,8 @@ class BacktestResult:
 		trading_days_per_year: Final[int] = 252
 
 		daily_returns = [today / yesterday - 1 for today, yesterday in zip(equity_curve[1:], equity_curve)]
+		if len(daily_returns) < 2:
+			return None, None
 		mean_daily_returns = mean(daily_returns)
 		daily_standard_deviation = stdev(daily_returns)
 		mean_annual_returns = trading_days_per_year * mean_daily_returns
@@ -72,7 +74,10 @@ class BacktestResult:
 
 		sharpe_ratio = excess_returns / standard_deviation
 		downside_daily_returns = [x for x in daily_returns if x < 0]
-		daily_downside_standard_deviation = stdev(downside_daily_returns)
-		downside_standard_deviation = standard_deviation_factor * daily_downside_standard_deviation
-		sortino_ratio = excess_returns / downside_standard_deviation
+		if len(downside_daily_returns) >= 2:
+			daily_downside_standard_deviation = stdev(downside_daily_returns)
+			downside_standard_deviation = standard_deviation_factor * daily_downside_standard_deviation
+			sortino_ratio = excess_returns / downside_standard_deviation
+		else:
+			sortino_ratio = None
 		return sharpe_ratio, sortino_ratio

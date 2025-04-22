@@ -1,11 +1,14 @@
 from argparse import ArgumentParser
+from typing import cast
+
 import pandas as pd
 
-from generate import generate_all_contracts, generate_contract
-from chart import render_chart
-from seasonality import analyze_seasonality
-from momentum import analyze_momentum
 from backtest_test import perform_backtest
+from chart import render_chart
+from chart_seasonality import render_seasonality_chart, SeasonalityChartMode
+from generate import generate_all_contracts, generate_contract
+from momentum import analyze_momentum
+from seasonality import analyze_seasonality
 
 def get_date_argument(date_string: str) -> pd.Timestamp:
 	pd.to_datetime(date_string, format="%Y-%m-%d", errors="raise")
@@ -25,6 +28,11 @@ def main() -> None:
 	seasonality_help = "Analyze seasonality of the specified symbols\n"
 	seasonality_help += "Requires the use of --start, --split and --end"
 	group.add_argument("--seasonality", metavar="SYMBOLS", nargs="*", help=seasonality_help)
+
+	seasonality_chart_help = "Render a chart with cumulative seasonality time series for the specified symbol\n"
+	seasonality_chart_help += "Supported modes: day, month, quarter\n"
+	seasonality_chart_help += "Also requires the use of --start and --end"
+	group.add_argument("--seasonality-chart", metavar=("SYMBOL", "MODE"), nargs="*", help=seasonality_chart_help)
 
 	parser.add_argument("--start", metavar="DATE", type=get_date_argument, help="Restrict data to be read to after this date")
 	parser.add_argument("--split", metavar="DATE", type=get_date_argument, help="Date at which to split in-sample and out-of-sample data")
@@ -54,6 +62,18 @@ def main() -> None:
 		split: pd.Timestamp = args.split
 		end: pd.Timestamp = args.end
 		analyze_seasonality(symbols, start, split, end)
+	elif args.seasonality_chart is not None:
+		assert args.start is not None and args.end is not None
+		symbol, mode_string = cast(tuple[str, str], args.seasonality_chart)
+		mode_dict = {
+			"day": SeasonalityChartMode.DAY_OF_WEEK,
+			"month": SeasonalityChartMode.MONTH,
+			"quarter": SeasonalityChartMode.QUARTER,
+		}
+		mode = mode_dict[mode_string]
+		start: pd.Timestamp = args.start
+		end: pd.Timestamp = args.end
+		render_seasonality_chart(symbol, mode, start, end)
 	elif args.momentum is not None:
 		symbols = args.momentum
 		analyze_momentum(symbols)

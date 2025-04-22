@@ -4,7 +4,7 @@ import matplotlib.pyplot as plt
 import pandas as pd
 import seaborn as sns
 from colorama import Fore, Style
-from matplotlib.ticker import StrMethodFormatter
+from matplotlib.ticker import FuncFormatter
 
 from asset import Asset
 from backtest_configuration import BacktestConfiguration
@@ -92,8 +92,9 @@ class Backtest:
 		equity_var = "Equity Curve"
 		drawdown_var = "Drawdown"
 		value_name = "value_name"
+		truncated_time_series = self._time_series[0:len(self._equity_curve)]
 		df = pd.DataFrame({
-			id_var: self._time_series,
+			id_var: truncated_time_series,
 			equity_var: self._equity_curve,
 			drawdown_var: self._drawdown
 		})
@@ -130,9 +131,16 @@ class Backtest:
 		plt.ylabel("Capital")
 		plt.title(f"Equity Curve")
 		plt.tight_layout()
-		formatter = StrMethodFormatter("${x:,.0f}")
+
+		def format_money_plot(x, _pos):
+			if x >= 0:
+				return f"${x:,.2f}"
+			else:
+				return f"-${abs(x):,.2f}"
+
+		formatter = FuncFormatter(format_money_plot)
 		plt.gca().yaxis.set_major_formatter(formatter)
-		ax.format_coord = lambda x, y: format_coord(x, y, ax, format_string=format_money)
+		ax.format_coord = lambda x, y: format_coord(x, y, ax, format_string=lambda x: format_money(x, False))
 		plt.show()
 		plt.close()
 

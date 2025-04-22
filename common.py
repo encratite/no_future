@@ -33,10 +33,13 @@ def format_percentage(percentage: float) -> str:
 		output = f"{Fore.RED}{output}{Style.RESET_ALL}"
 	return output
 
-def format_money(amount: float) -> str:
+def format_money(amount: float, console: bool = True) -> str:
 	output = f"${amount:,.2f}"
 	if amount < 0:
-		output = f"{Fore.RED}(${- amount:,.2f}){Style.RESET_ALL}"
+		if console:
+			output = f"{Fore.RED}(${- amount:,.2f}){Style.RESET_ALL}"
+		else:
+			output = f"(${- amount:,.2f})"
 	return output
 
 def format_ratio(ratio: float | None) -> str:

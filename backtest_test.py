@@ -27,7 +27,7 @@ def perform_backtest(start: pd.Timestamp, end: pd.Timestamp) -> None:
 		# "ZC",
 		# Softs
 		# "CT",
-		"SB",
+		# "SB",
 		# Meats
 		# "HE",
 		# "LE",
@@ -36,7 +36,7 @@ def perform_backtest(start: pd.Timestamp, end: pd.Timestamp) -> None:
 		# "6B",
 		# "6S",
 		# Rates
-		# "ZB",
+		"ZB",
 		# "ZN",
 		# "ZT"
 	]
@@ -53,11 +53,11 @@ def perform_backtest(start: pd.Timestamp, end: pd.Timestamp) -> None:
 		1000
 	]
 	minimum_values = [
-		# 0,
+		0,
 		# 0.0005,
 		# 0.0010,
 		# 0.0015,
-		0.0020,
+		# 0.0020,
 	]
 	strategies = []
 	for sample_size, minimum in product(sample_size_values, minimum_values):

@@ -1,6 +1,5 @@
 import calendar
 from collections import defaultdict
-from itertools import repeat
 from statistics import mean
 from typing import Final
 
