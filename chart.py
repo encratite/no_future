@@ -1,10 +1,11 @@
 import os
 
 import matplotlib.pyplot as plt
-from matplotlib.widgets import Cursor
-import seaborn as sns
 import pandas as pd
+import seaborn as sns
+from matplotlib.widgets import Cursor
 
+from common import format_coord
 from configuration import Configuration
 
 def render_chart(symbols: list[str], start: pd.Timestamp | None, end: pd.Timestamp | None):
@@ -30,10 +31,9 @@ def render_chart(symbols: list[str], start: pd.Timestamp | None, end: pd.Timesta
 	xlim_min = min(xlim_min_values)
 	xlim_max = max(xlim_max_values)
 	plt.xlim(xlim_min, xlim_max)
-
 	plt.ion()
 	_cursor = Cursor(ax, horizOn=False, vertOn=True, color="grey", linewidth=1, alpha=0.2)
-
+	ax.format_coord = lambda x, y: format_coord(x, y, ax)
 	plt.xlabel("Time")
 	plt.ylabel("Price")
 	plt.legend()

@@ -10,7 +10,7 @@ from asset import Asset
 from backtest_configuration import BacktestConfiguration
 from backtest_interface import BacktestInterface
 from backtest_result import BacktestResult
-from common import format_percentage, format_money, format_ratio, print_table
+from common import format_percentage, format_money, format_ratio, print_table, format_coord
 from configuration import Configuration
 from manager import AssetManager
 from ohlc import OhlcRecord
@@ -75,7 +75,7 @@ class Backtest:
 				for symbol, signal in strategy_signals.items():
 					signals[symbol] += strategy.weight * signal
 			for symbol in list(signals.keys()):
-				if signals[symbol] < 0.5:
+				if abs(signals[symbol]) < 0.5:
 					del signals[symbol]
 			self._rebalance(signals)
 			self._update_equity_curve()
@@ -132,6 +132,7 @@ class Backtest:
 		plt.tight_layout()
 		formatter = StrMethodFormatter("${x:,.0f}")
 		plt.gca().yaxis.set_major_formatter(formatter)
+		ax.format_coord = lambda x, y: format_coord(x, y, ax, format_string=format_money)
 		plt.show()
 		plt.close()
 
@@ -162,6 +163,7 @@ class Backtest:
 		return result
 
 	def _rebalance(self, signals: defaultdict[str, float]) -> None:
+		# print((self._time, signals))
 		for position in self._positions:
 			symbol = position.symbol
 			if symbol not in signals:
@@ -194,7 +196,7 @@ class Backtest:
 	def _ruin_check(self) -> None:
 		ratio = self._account_value / self._configuration.initial_cash
 		if ratio < Configuration.RUIN_RATIO:
-			print(f"Account value dropped to {Fore.RED}{ratio:.2%}{Style.RESET_ALL}, terminating simulation prematurely")
+			print(f"Account value dropped to {Fore.RED}{ratio:.2%}{Style.RESET_ALL} at {self._time}, terminating simulation prematurely")
 			print("Strategies in use by backtest:")
 			for i, strategy in enumerate(self._strategies):
 				print(f"{i + 1}. {strategy.name}")
@@ -217,13 +219,19 @@ class Backtest:
 		maintenance_margin = self._get_margin(current_record, asset)
 		maintenance_margin, forex_fee = self._convert_currency(maintenance_margin, asset.currency)
 		initial_margin = count * Configuration.INITIAL_MARGIN_RATIO * maintenance_margin
-		fees = forex_fee + asset.broker_fee + asset.exchange_fee
+		if Configuration.ENABLE_FEES:
+			fees = forex_fee + asset.broker_fee + asset.exchange_fee
+		else:
+			fees = 0
 		if initial_margin + fees >= self._cash:
 			raise Exception(f"Not enough cash to open a position with {count} contract(s) of {symbol} with an initial margin requirement of ${initial_margin:.2}")
 		cost = count * maintenance_margin + fees
 		self._cash -= cost
 		self._fees += fees
-		mean_spread = self._get_mean_spread(count, asset)
+		if Configuration.ENABLE_FEES:
+			mean_spread = self._get_mean_spread(count, asset)
+		else:
+			mean_spread = 0
 		ask = current_record.close + mean_spread * asset.tick_size
 		position = Position(
 			symbol,
@@ -285,7 +293,10 @@ class Backtest:
 		if position.side == PositionSide.SHORT:
 			profit = -profit
 		gain, forex_fee = self._convert_currency(profit, asset.currency)
-		fees = forex_fee + asset.broker_fee + asset.exchange_fee
+		if Configuration.ENABLE_FEES:
+			fees = forex_fee + asset.broker_fee + asset.exchange_fee
+		else:
+			fees = 0
 		value = margin + gain - fees
 		return value, bid, fees
 

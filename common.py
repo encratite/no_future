@@ -1,8 +1,10 @@
-from concurrent.futures import ProcessPoolExecutor, as_completed
 import os
+from concurrent.futures import ProcessPoolExecutor, as_completed
 from math import log
 from typing import Any, Callable, Iterable, TypeVar
 
+import matplotlib.dates as mdates
+import numpy as np
 from colorama import Fore, Style
 from tabulate import tabulate
 from tqdm import tqdm
@@ -73,3 +75,30 @@ def get_log_returns(new_value: float, old_value: float) -> float:
 	if value <= 0:
 		value = 0.01
 	return log(value)
+
+def format_coord(x: float, y: float, ax: Any, format_string: Callable[[float], str] | None = None) -> str:
+	date = mdates.num2date(x).strftime("%Y-%m-%d")
+	nearest_points = []
+	lines = ax.get_lines()
+	for line in lines:
+		xdata = line.get_xdata()
+		ydata = line.get_ydata()
+		if len(xdata) > 0:
+			idx = np.abs(xdata - x).argmin()
+			nearest_y = ydata[idx]
+			label = line.get_label()
+			if label.startswith("_"):
+				continue
+			if format_string is not None:
+				y_string = format_string(nearest_y)
+			else:
+				y_string = f"{nearest_y:.2f}"
+			nearest_points.append(f"{label}: {y_string}")
+	if len(nearest_points) > 0:
+		return f"[{date}] " + ", ".join(nearest_points)
+	else:
+		if format_string is not None:
+			y_string = format_string(y)
+		else:
+			y_string = f"{y:.2f}"
+		return f"[{date}] {y_string}"
