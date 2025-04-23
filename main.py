@@ -3,7 +3,7 @@ from typing import cast
 
 import pandas as pd
 
-from backtest_test import perform_backtest
+from backtest_test import perform_backtest, perform_wfo_backtest
 from chart import render_chart
 from chart_seasonality import render_seasonality_chart, SeasonalityChartMode
 from generate import generate_all_contracts, generate_contract
@@ -32,7 +32,7 @@ def main() -> None:
 	seasonality_chart_help = "Render a chart with cumulative seasonality time series for the specified symbol\n"
 	seasonality_chart_help += "Supported modes: day, month, quarter\n"
 	seasonality_chart_help += "Also requires the use of --start and --end"
-	group.add_argument("--seasonality-chart", metavar=("SYMBOL", "MODE"), nargs="*", help=seasonality_chart_help)
+	group.add_argument("--seasonality-chart", metavar=("SYMBOL", "MODE"), nargs=2, help=seasonality_chart_help)
 
 	parser.add_argument("--start", metavar="DATE", type=get_date_argument, help="Restrict data to be read to after this date")
 	parser.add_argument("--split", metavar="DATE", type=get_date_argument, help="Date at which to split in-sample and out-of-sample data")
@@ -43,6 +43,11 @@ def main() -> None:
 	backtest_help = "Perform a backtest using the strategies defined in backtest_test.py\n"
 	backtest_help += "Requires the use of --start and --end"
 	group.add_argument("--backtest", action="store_true", help=backtest_help)
+
+	backtest_wfo_help = "Perform a backtest with walk-forward optimization using the strategies defined in backtest_test.py\n"
+	backtest_wfo_help += "The WFO years parameter specifies the size of the window into the recent past to perform parameter optimization with"
+	backtest_wfo_help += "Requires the use of --start and --end"
+	group.add_argument("--backtest-wfo", metavar=("SYMBOL", "WFO_YEARS"), nargs=2, help=backtest_wfo_help)
 
 	args = parser.parse_args()
 	if args.generate_all:
@@ -83,6 +88,13 @@ def main() -> None:
 		start: pd.Timestamp = args.start
 		end: pd.Timestamp = args.end
 		perform_backtest(start, end)
+	elif args.backtest_wfo is not None:
+		assert args.start is not None and args.end is not None
+		symbol, wfo_years_string = args.backtest_wfo
+		wfo_years = int(wfo_years_string)
+		start: pd.Timestamp = args.start
+		end: pd.Timestamp = args.end
+		perform_wfo_backtest(symbol, start, end, wfo_years)
 	else:
 		parser.print_help()
 

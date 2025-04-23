@@ -17,11 +17,11 @@ class AssetManager:
 	_assets: dict[str, Asset]
 	_t_bills: TimeSeries[float]
 
-	def __init__(self):
+	def __init__(self, symbols: list[str] | None):
 		self._time_series = {}
 		self._currencies = {}
 		self._assets = {}
-		self._load_time_series()
+		self._load_time_series(symbols)
 		self._load_currencies()
 		self._load_assets()
 		self._load_t_bills()
@@ -61,12 +61,18 @@ class AssetManager:
 		rate = self._t_bills.get(time) / 100
 		return rate
 
-	def _load_time_series(self) -> None:
+	def _load_time_series(self, symbols: list[str] | None) -> None:
 		pattern = os.path.join(Configuration.FEATHER_DIRECTORY, "*.feather")
 		paths = glob(pattern)
+		globex_pattern = re.compile("^[A-Z0-9]+")
 		for path in paths:
 			basename = os.path.basename(path)
 			symbol, _extension = os.path.splitext(basename)
+			globex_match = globex_pattern.match(symbol)
+			if globex_match is None:
+				raise Exception(f"Unable to parse symbol: {symbol}")
+			if symbols is not None and globex_match[0] not in symbols:
+				continue
 			time_series = TimeSeries.read_ohlc_feather(path)
 			self._time_series[symbol] = time_series
 

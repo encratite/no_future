@@ -171,7 +171,6 @@ class Backtest:
 		return result
 
 	def _rebalance(self, signals: defaultdict[str, float]) -> None:
-		# print((self._time, signals))
 		for position in self._positions:
 			symbol = position.symbol
 			if symbol not in signals:
@@ -204,10 +203,11 @@ class Backtest:
 	def _ruin_check(self) -> None:
 		ratio = self._account_value / self._configuration.initial_cash
 		if ratio < Configuration.RUIN_RATIO:
-			print(f"Account value dropped to {Fore.RED}{ratio:.2%}{Style.RESET_ALL} at {self._time}, terminating simulation prematurely")
-			print("Strategies in use by backtest:")
-			for i, strategy in enumerate(self._strategies):
-				print(f"{i + 1}. {strategy.name}")
+			if self._configuration.enable_output:
+				print(f"Account value dropped to {Fore.RED}{ratio:.2%}{Style.RESET_ALL} at {self._time}, terminating simulation prematurely")
+				print("Strategies in use by backtest:")
+				for i, strategy in enumerate(self._strategies):
+					print(f"{i + 1}. {strategy.name}")
 			self._terminated = True
 
 	@staticmethod

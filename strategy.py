@@ -9,6 +9,7 @@ import numpy as np
 import pandas as pd
 
 from backtest_interface import BacktestInterface
+from ohlc import OhlcRecord
 
 class RebalanceMode(Enum):
 	WEEKLY_MONDAY: Final[int] = 0
@@ -18,6 +19,15 @@ class RebalanceMode(Enum):
 	WEEKLY_FRIDAY: Final[int] = 4
 	START_OF_MONTH: Final[int] = 10
 	END_OF_MONTH: Final[int] = 11
+
+class MovingAverageTradingMode(Enum):
+	LONG: Final[int] = 0
+	SHORT: Final[int] = 1
+	LONG_SHORT: Final[int] = 2
+
+class MovingAverageFunction(Enum):
+	SIMPLE: Final[int] = 0
+	EXPONENTIAL: Final[int] = 1
 
 class Strategy(ABC):
 	name: str
@@ -218,7 +228,7 @@ class DailySeasonalityStrategy(Strategy):
 			if symbol in self._best_days:
 				self._best_days[symbol].last_update = interface.time
 			return
-		daily_returns: list[tuple[pd.Timestamp, float]] = [(b.time, a.close / b.close - 1) for a, b in zip(records[1:], records)]
+		daily_returns: list[tuple[pd.Timestamp, float]] = [(a.time, b.close / a.close - 1) for a, b in zip(records, records[1:])]
 		returns_by_day: defaultdict[int, list[float]] = defaultdict(list)
 		for time, returns in daily_returns:
 			returns_by_day[time.day_of_week].append(returns)
@@ -231,3 +241,106 @@ class DailySeasonalityStrategy(Strategy):
 		# print((interface.time, best_day, best_returns, signal_sign))
 		data = DailySeasonalityData(best_day, best_returns, signal_sign, interface.time)
 		self._best_days[symbol] = data
+
+class MovingAverageConfiguration:
+	fast_days: int
+	slow_days: int
+	trading_mode: MovingAverageTradingMode
+	function: MovingAverageFunction
+
+	def __init__(
+		self,
+		fast_days: int,
+		slow_days: int,
+		trading_mode: MovingAverageTradingMode,
+		function: MovingAverageFunction
+	):
+		assert 2 <= fast_days < slow_days
+		self.fast_days = fast_days
+		self.slow_days = slow_days
+		self.trading_mode = trading_mode
+		self.function = function
+
+class MovingAverageStrategy(Strategy):
+	_symbol: str
+	_configuration: MovingAverageConfiguration
+
+	def __init__(
+		self,
+		symbol: str,
+		configuration: MovingAverageConfiguration
+	):
+		trading_mode_strings = {
+			MovingAverageTradingMode.LONG: "long only",
+			MovingAverageTradingMode.SHORT: "short only",
+			MovingAverageTradingMode.LONG_SHORT: "long/short",
+		}
+		trading_mode_description = trading_mode_strings[configuration.trading_mode]
+		function_strings = {
+			MovingAverageFunction.SIMPLE: "SMA",
+			MovingAverageFunction.EXPONENTIAL: "EMA",
+		}
+		function_description = function_strings[configuration.function]
+		super().__init__(f"Moving Average Crossover ({configuration.fast_days} fast, {configuration.slow_days} slow, {trading_mode_description}, {function_description})")
+		self._symbol = symbol
+		self._configuration = configuration
+
+	def get_signals(self, interface: BacktestInterface) -> dict[str, float]:
+		slow_records = interface.get_records(self._symbol, count=self._configuration.slow_days)
+		fast_records = slow_records[:self._configuration.fast_days]
+		functions = {
+			MovingAverageFunction.SIMPLE: self._get_simple_moving_average,
+			MovingAverageFunction.EXPONENTIAL: self._get_exponential_moving_average,
+		}
+		function = functions[self._configuration.function]
+		fast_moving_average = function(fast_records)
+		slow_moving_average = function(slow_records)
+		signal = 1 if fast_moving_average >= slow_moving_average else -1
+		output = {}
+		long_match = self._configuration.trading_mode in [MovingAverageTradingMode.LONG, MovingAverageTradingMode.LONG_SHORT] and signal == 1
+		short_match = self._configuration.trading_mode in [MovingAverageTradingMode.SHORT, MovingAverageTradingMode.LONG_SHORT] and signal == -1
+		if long_match or short_match:
+			output[self._symbol] = signal
+		return output
+
+	@staticmethod
+	def _get_simple_moving_average(records: list[OhlcRecord]) -> float:
+		closes = [x.close for x in records]
+		average = mean(closes)
+		return average
+
+	@staticmethod
+	def _get_exponential_moving_average(records: list[OhlcRecord]) -> float:
+		sum_ = 0
+		coefficient_sum = 0
+		i = 0
+		lambda_ = 2.0 / (len(records) + 1)
+		for x in records:
+			coefficient = lambda_ * (1 - lambda_)**i
+			sum_ += coefficient * x.close
+			coefficient_sum += coefficient
+			i += 1
+		average = sum_ / coefficient_sum
+		return average
+
+class WfoStrategy(Strategy):
+	_strategies: list[tuple[pd.Timestamp, Strategy]]
+	_remaining_strategies: list[tuple[pd.Timestamp, Strategy]]
+	_active_strategy: Strategy
+
+	def __init__(self, strategies: list[tuple[pd.Timestamp, Strategy]]):
+		super().__init__("WFO Strategy")
+		self._strategies = strategies
+		self.reset()
+
+	def get_signals(self, interface: BacktestInterface) -> dict[str, float]:
+		if len(self._remaining_strategies) > 0:
+			time, strategy = self._remaining_strategies[0]
+			if interface.time >= time:
+				self._remaining_strategies.pop(0)
+		signals = self._active_strategy.get_signals(interface)
+		return signals
+
+	def reset(self) -> None:
+		self._remaining_strategies = self._strategies[1:]
+		_, self._active_strategy = self._strategies[0]
