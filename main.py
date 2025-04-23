@@ -68,6 +68,7 @@ def main() -> None:
 		mode_dict = {
 			"day": SeasonalityChartMode.DAY_OF_WEEK,
 			"month": SeasonalityChartMode.MONTH,
+			"turn": SeasonalityChartMode.TURN_OF_MONTH,
 			"quarter": SeasonalityChartMode.QUARTER,
 		}
 		mode = mode_dict[mode_string]

@@ -36,7 +36,7 @@ def get_assets() -> tuple[list[Asset], pd.Timestamp]:
 			"Nasdaq 100 E-Mini",
 			"USD",
 			0.25,
-			0.5,
+			5.0,
 			21674.50,
 			True,
 			0.85,

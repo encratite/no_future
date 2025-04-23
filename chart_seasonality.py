@@ -14,10 +14,15 @@ ID_VAR: Final[str] = "index"
 VAR_NAME: Final[str] = "value"
 VALUE_NAME: Final[str] = "value_name"
 
+START_OF_MONTH: Final[str] = "Start of Month"
+MIDDLE_OF_MONTH: Final[str] = "Middle of Month"
+END_OF_MONTH: Final[str] = "End of Month"
+
 class SeasonalityChartMode(Enum):
 	DAY_OF_WEEK: Final[int] = 0
 	MONTH: Final[int] = 1
-	QUARTER: Final[int] = 2
+	TURN_OF_MONTH: Final[int] = 2
+	QUARTER: Final[int] = 3
 
 def render_seasonality_chart(symbol: str, mode: SeasonalityChartMode, start: pd.Timestamp, end: pd.Timestamp) -> None:
 	assert start < end
@@ -41,12 +46,28 @@ def get_seasonality_chart_data(symbol: str, mode: SeasonalityChartMode, start: p
 	records = [x for x in records if start <= x.time < end and not Strategy.is_banned_symbol(symbol, x.time)]
 	time_returns: list[tuple[pd.Timestamp, float]] = [(a.time, b.close / a.close - 1) for a, b in zip(records, records[1:])]
 	returns_dict: defaultdict[str, list[float]] = defaultdict(list)
-	for time, returns in time_returns:
+	random_samples_added = 0
+	for i, time_returns_tuple in enumerate(time_returns):
+		time, returns = time_returns_tuple
 		match mode:
 			case SeasonalityChartMode.DAY_OF_WEEK:
 				key = calendar.day_name[time.day_of_week]
 			case SeasonalityChartMode.MONTH:
 				key = calendar.month_name[time.month]
+			case SeasonalityChartMode.TURN_OF_MONTH:
+				turn_of_month_samples = 2
+				if i >= turn_of_month_samples and time_returns[i - turn_of_month_samples][0].month != time.month:
+					key = START_OF_MONTH
+					random_samples_added = 0
+				elif i < len(time_returns) - turn_of_month_samples and time_returns[i + turn_of_month_samples][0].month != time.month:
+					key = END_OF_MONTH
+					random_samples_added = 0
+				else:
+					if random_samples_added < turn_of_month_samples and time.day >= 15:
+						key = MIDDLE_OF_MONTH
+						turn_of_month_samples += 1
+					else:
+						continue
 			case SeasonalityChartMode.QUARTER:
 				key = f"Q{time.month // 3 + 1}"
 			case _:
@@ -73,6 +94,12 @@ def get_seasonality_chart_data(symbol: str, mode: SeasonalityChartMode, start: p
 			value_vars = list(calendar.day_name)[:5]
 		case SeasonalityChartMode.MONTH:
 			value_vars = list(calendar.month_name)[1:]
+		case SeasonalityChartMode.TURN_OF_MONTH:
+			value_vars = [
+				START_OF_MONTH,
+				MIDDLE_OF_MONTH,
+				END_OF_MONTH
+			]
 		case SeasonalityChartMode.QUARTER:
 			value_vars = [f"Q{x + 1}" for x in range(4)]
 		case _:

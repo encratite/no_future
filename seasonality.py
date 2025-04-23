@@ -1,7 +1,7 @@
 import calendar
 from collections import defaultdict
 from statistics import mean
-from typing import Final
+from typing import Final, cast
 
 import pandas as pd
 
@@ -31,7 +31,7 @@ class SeasonalityStats:
 		one_day = pd.Timedelta(days=1)
 		previous_time: pd.Timestamp = time - early_late_delta
 		saturday: Final[int] = 5
-		while previous_time.day_of_week >= saturday:
+		while cast(int, previous_time.day_of_week) >= saturday:
 			previous_time -= one_day
 		next_time: pd.Timestamp = time + early_late_delta
 		while next_time.day_of_week >= saturday:
