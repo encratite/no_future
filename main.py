@@ -9,6 +9,7 @@ from chart_seasonality import render_seasonality_chart, SeasonalityChartMode
 from generate import generate_all_contracts, generate_contract
 from momentum import analyze_momentum
 from seasonality import analyze_seasonality
+from heatmap import render_heatmap
 
 def get_date_argument(date_string: str) -> pd.Timestamp:
 	pd.to_datetime(date_string, format="%Y-%m-%d", errors="raise")
@@ -24,6 +25,12 @@ def main() -> None:
 	chart_help += "By default this will display all available data\n"
 	chart_help += "Use --start and --end to limit the chart to a certain time range"
 	group.add_argument("--chart", metavar="SYMBOLS", nargs="*", help=chart_help)
+
+	heatmap_help = "Render a heatmap of one-day returns of the specified symbol based on the quantiles of the two specified features\n"
+	heatmap_help += "Supported features: return1, return2, volume, interest, volatility"
+	heatmap_help += "The number of quantiles determines the number of cells in the heatmap"
+	heatmap_help += "Requires the use of --start and --end"
+	group.add_argument("--heatmap", metavar=("SYMBOL", "FEATURE1", "FEATURE2", "QUANTILES"), nargs=4, help=heatmap_help)
 
 	seasonality_help = "Analyze seasonality of the specified symbols\n"
 	seasonality_help += "Requires the use of --start, --split and --end"
@@ -60,6 +67,12 @@ def main() -> None:
 		start: pd.Timestamp | None = args.start
 		end: pd.Timestamp | None = args.end
 		render_chart(symbols, start, end)
+	elif args.heatmap is not None:
+		symbol, x_axis, y_axis, quantiles_string = args.heatmap
+		start: pd.Timestamp = args.start
+		end: pd.Timestamp = args.end
+		quantiles = int(quantiles_string)
+		render_heatmap(symbol, start, end, x_axis, y_axis, quantiles)
 	elif args.seasonality is not None:
 		assert args.start is not None and args.split is not None and args.end is not None
 		symbols: list[str] = args.seasonality
