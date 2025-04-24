@@ -210,16 +210,6 @@ class Backtest:
 					print(f"{i + 1}. {strategy.name}")
 			self._terminated = True
 
-	@staticmethod
-	def _get_mean_spread(contracts: int, asset: Asset) -> float:
-		base_spread_contracts = min(contracts, asset.depth)
-		ticks_sum = asset.spread * base_spread_contracts
-		remaining_contracts = contracts - base_spread_contracts
-		for i in range(remaining_contracts):
-			ticks_sum += asset.spread + i + 1
-		mean_spread = ticks_sum * asset.tick_value / contracts
-		return mean_spread
-
 	def _open_position(self, symbol: str, count: int, side: PositionSide) -> None:
 		assert count > 0
 		current_record = self._asset_manager.get_record(symbol, self._time)
@@ -238,17 +228,15 @@ class Backtest:
 		cost = count * maintenance_margin + fees
 		self._cash -= cost
 		self._fees += fees
-		if Configuration.ENABLE_FEES:
-			mean_spread = self._get_mean_spread(count, asset)
-		else:
-			mean_spread = 0
-		ask = current_record.close + mean_spread * asset.tick_size
+		bid = current_record.close
+		ask = bid + asset.spread * asset.tick_size
+		price = ask if side == PositionSide.LONG else bid
 		position = Position(
 			symbol,
 			asset,
 			count,
 			side,
-			ask,
+			price,
 			maintenance_margin,
 			self._time
 		)
@@ -296,9 +284,11 @@ class Backtest:
 		assert 1 <= count <= position.count
 		record = self._asset_manager.get_record(position.symbol, self._time)
 		margin = count * position.margin
-		bid = record.close
 		asset = position.asset
-		ticks = count * (bid - position.price) / asset.tick_size
+		bid = record.close
+		ask = bid + asset.spread * asset.tick_size
+		price = bid if position.side == PositionSide.LONG else ask
+		ticks = count * (price - position.price) / asset.tick_size
 		profit = ticks * asset.tick_value
 		if position.side == PositionSide.SHORT:
 			profit = -profit

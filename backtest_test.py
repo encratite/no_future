@@ -9,6 +9,7 @@ import pandas as pd
 from backtest import Backtest, BacktestResult
 from backtest_configuration import BacktestConfiguration
 from manager import AssetManager
+from position import PositionSide
 from strategy import (
 	Strategy,
 	BuyAndHoldStrategy,
@@ -126,8 +127,8 @@ def perform_wfo_backtest(symbol: str, start: pd.Timestamp, end: pd.Timestamp, wf
 	print(f"Finished WFO backtest in {time_delta:.1f} s")
 
 def perform_buy_and_hold_test(symbol: str, configuration: BacktestConfiguration, asset_manager: AssetManager) -> None:
-	results = []
-	for signal in [1, -1]:
+	results: list[tuple[BacktestResult, str]] = []
+	for signal, side_string in [(1, "long"), (-1, "short")]:
 		buy_and_hold_signals = {
 			symbol: signal
 		}
@@ -136,9 +137,9 @@ def perform_buy_and_hold_test(symbol: str, configuration: BacktestConfiguration,
 		]
 		backtest = Backtest(strategies, configuration, asset_manager)
 		result = backtest.run()
-		results.append(result)
-	best_result = max(results, key=lambda x: x.sharpe_ratio)
-	print("Buy and hold performance:")
+		results.append((result, side_string))
+	best_result, side_string = max(results, key=lambda x: x[0].sharpe_ratio)
+	print(f"Buy and hold performance ({side_string}):")
 	backtest.print_result(best_result)
 
 def print_wfo_strategies(wfo_years: int, wfo_strategies: list[tuple[pd.Timestamp, Strategy]]) -> None:
