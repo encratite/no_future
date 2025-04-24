@@ -54,7 +54,9 @@ class Strategy(ABC):
 				return True
 		if symbol == "ZS" and time < pd.Timestamp("2009-04-01"):
 			return True
-		if symbol == "CT" and time < pd.Timestamp("2010-10-01"):
+		elif symbol == "CT" and time < pd.Timestamp("2010-10-01"):
+			return True
+		elif symbol == "ZS" and time < pd.Timestamp("2008-03-01"):
 			return True
 		return False
 

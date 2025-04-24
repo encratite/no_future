@@ -9,7 +9,6 @@ import pandas as pd
 from backtest import Backtest, BacktestResult
 from backtest_configuration import BacktestConfiguration
 from manager import AssetManager
-from position import PositionSide
 from strategy import (
 	Strategy,
 	BuyAndHoldStrategy,

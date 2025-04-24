@@ -9,6 +9,7 @@ def get_contract_filter(barchart_symbol: str) -> ContractFilter | None:
 		return None
 
 CONTRACT_CONFIGURATION: Final[dict[str, ContractFilter]] = {
+	"A6": ContractFilter("6A", legacy_cutoff="A6H01", first_filter_contract="A6J17", include_months=["H", "M", "U", "Z"], cutoff_date="2001-03-27"),
 	"B6": ContractFilter("6B", legacy_cutoff="B6M03", first_filter_contract="B6J17", include_months=["H", "M", "U", "Z"]),
 	"BA": ContractFilter("MBT"),
 	"BT": ContractFilter("BTC"),
@@ -19,6 +20,7 @@ CONTRACT_CONFIGURATION: Final[dict[str, ContractFilter]] = {
 	"DL": ContractFilter("DA", cutoff_date="2006-10-06"),
 	"DV": ContractFilter("V2TX"),
 	"DY": ContractFilter("FDAX", legacy_cutoff="DYM02"),
+	"D6": ContractFilter("6C", legacy_cutoff="D6H01", first_filter_contract="D6J17", include_months=["H", "M", "U", "Z"]),
 	"E6": ContractFilter("6E", legacy_cutoff="E6H02", first_filter_contract="E6J17", include_months=["H", "M", "U", "Z"], cutoff_date="2001-11-24"),
 	"ER": ContractFilter("ETH"),
 	"ES": ContractFilter(legacy_cutoff="ESU02"),
