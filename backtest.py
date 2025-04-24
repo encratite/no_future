@@ -232,7 +232,9 @@ class Backtest:
 		else:
 			fees = 0
 		if initial_margin + fees >= self._cash:
-			raise Exception(f"Not enough cash to open a position with {count} contract(s) of {symbol} with an initial margin requirement of ${initial_margin:.2}")
+			if self._configuration.enable_output:
+				print(f"Not enough cash to open a position with {count} contract(s) of {symbol} with an initial margin requirement of {format_money(initial_margin)}")
+			return
 		cost = count * maintenance_margin + fees
 		self._cash -= cost
 		self._fees += fees

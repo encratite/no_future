@@ -247,19 +247,22 @@ class MovingAverageConfiguration:
 	slow_days: int
 	trading_mode: MovingAverageTradingMode
 	function: MovingAverageFunction
+	regime_filter: bool
 
 	def __init__(
 		self,
 		fast_days: int,
 		slow_days: int,
 		trading_mode: MovingAverageTradingMode,
-		function: MovingAverageFunction
+		function: MovingAverageFunction,
+		regime_filter: bool
 	):
 		assert 2 <= fast_days < slow_days
 		self.fast_days = fast_days
 		self.slow_days = slow_days
 		self.trading_mode = trading_mode
 		self.function = function
+		self.regime_filter = regime_filter
 
 class MovingAverageStrategy(Strategy):
 	_symbol: str
@@ -281,13 +284,19 @@ class MovingAverageStrategy(Strategy):
 			MovingAverageFunction.EXPONENTIAL: "EMA",
 		}
 		function_description = function_strings[configuration.function]
-		super().__init__(f"Moving Average Crossover ({configuration.fast_days} fast, {configuration.slow_days} slow, {trading_mode_description}, {function_description})")
+		if configuration.regime_filter:
+			regime_filter_description = ", regime filter"
+		else:
+			regime_filter_description = ""
+		super().__init__(f"Moving Average Crossover ({configuration.fast_days} fast, {configuration.slow_days} slow, {trading_mode_description}, {function_description}{regime_filter_description})")
 		self._symbol = symbol
 		self._configuration = configuration
 
 	def get_signals(self, interface: BacktestInterface) -> dict[str, float]:
-		slow_records = interface.get_records(self._symbol, count=self._configuration.slow_days)
-		fast_records = slow_records[:self._configuration.fast_days]
+		records_count = 250 if self._configuration.regime_filter else self._configuration.slow_days
+		all_records = interface.get_records(self._symbol, count=records_count)
+		fast_records = all_records[:self._configuration.fast_days]
+		slow_records = all_records[:self._configuration.slow_days]
 		functions = {
 			MovingAverageFunction.SIMPLE: self._get_simple_moving_average,
 			MovingAverageFunction.EXPONENTIAL: self._get_exponential_moving_average,
@@ -296,6 +305,12 @@ class MovingAverageStrategy(Strategy):
 		fast_moving_average = function(fast_records)
 		slow_moving_average = function(slow_records)
 		signal = 1 if fast_moving_average >= slow_moving_average else -1
+		if self._configuration.regime_filter:
+			closes = [x.close for x in all_records]
+			today = closes[0]
+			simple_moving_average = mean(closes)
+			if signal == 1 and today < simple_moving_average or signal == -1 and today > simple_moving_average:
+				return {}
 		output = {}
 		long_match = self._configuration.trading_mode in [MovingAverageTradingMode.LONG, MovingAverageTradingMode.LONG_SHORT] and signal == 1
 		short_match = self._configuration.trading_mode in [MovingAverageTradingMode.SHORT, MovingAverageTradingMode.LONG_SHORT] and signal == -1

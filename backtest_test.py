@@ -126,16 +126,20 @@ def perform_wfo_backtest(symbol: str, start: pd.Timestamp, end: pd.Timestamp, wf
 	print(f"Finished WFO backtest in {time_delta:.1f} s")
 
 def perform_buy_and_hold_test(symbol: str, configuration: BacktestConfiguration, asset_manager: AssetManager) -> None:
-	buy_and_hold_signals = {
-		symbol: 1
-	}
-	strategies = [
-		BuyAndHoldStrategy(buy_and_hold_signals)
-	]
-	backtest = Backtest(strategies, configuration, asset_manager)
-	result = backtest.run()
+	results = []
+	for signal in [1, -1]:
+		buy_and_hold_signals = {
+			symbol: signal
+		}
+		strategies = [
+			BuyAndHoldStrategy(buy_and_hold_signals)
+		]
+		backtest = Backtest(strategies, configuration, asset_manager)
+		result = backtest.run()
+		results.append(result)
+	best_result = max(results, key=lambda x: x.sharpe_ratio)
 	print("Buy and hold performance:")
-	backtest.print_result(result)
+	backtest.print_result(best_result)
 
 def print_wfo_strategies(wfo_years: int, wfo_strategies: list[tuple[pd.Timestamp, Strategy]]) -> None:
 	strategies_dict: defaultdict[str, int] = defaultdict(int)
@@ -177,10 +181,14 @@ def get_best_wfo_parameters(
 	]
 	trading_modes = [
 		MovingAverageTradingMode.LONG,
-		# MovingAverageTradingMode.SHORT,
-		# MovingAverageTradingMode.LONG_SHORT,
+		MovingAverageTradingMode.SHORT,
+		MovingAverageTradingMode.LONG_SHORT,
 	]
-	strategy_parameters = list(product(fast_slow_values, trading_modes, list(MovingAverageFunction)))
+	regime_filters = [
+		False,
+		True
+	]
+	strategy_parameters = list(product(fast_slow_values, trading_modes, list(MovingAverageFunction), regime_filters))
 	output: list[tuple[pd.Timestamp, Strategy]] = []
 	i = 0
 	cpu_count = os.cpu_count()
@@ -192,9 +200,9 @@ def get_best_wfo_parameters(
 		end = wfo_date
 		backtest_configuration = BacktestConfiguration(start, end, initial_cash)
 		backtest_results: list[tuple[Strategy, BacktestResult]] = []
-		for fast_slow_tuple, trading_mode, function in strategy_parameters:
+		for fast_slow_tuple, trading_mode, function, regime_filter in strategy_parameters:
 			fast_days, slow_days = fast_slow_tuple
-			strategy_configuration = MovingAverageConfiguration(fast_days, slow_days, trading_mode, function)
+			strategy_configuration = MovingAverageConfiguration(fast_days, slow_days, trading_mode, function, regime_filter)
 			strategy = MovingAverageStrategy(symbol, strategy_configuration)
 			backtest = Backtest([strategy], backtest_configuration, asset_manager)
 			result = backtest.run()

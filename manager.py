@@ -18,6 +18,9 @@ class AssetManager:
 	_t_bills: TimeSeries[float]
 
 	def __init__(self, symbols: list[str] | None):
+		reference = "ES"
+		if symbols is not None and reference not in symbols:
+			symbols.append(reference)
 		self._time_series = {}
 		self._currencies = {}
 		self._assets = {}
