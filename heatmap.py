@@ -1,44 +1,106 @@
 import warnings
 from math import sqrt
 from statistics import stdev, mean
-from typing import Final
+from typing import Final, Any
 
+from colorama import Fore, Style
 import matplotlib.pyplot as plt
+import matplotlib.ticker as ticker
 import numpy as np
 import numpy.typing as npt
 import pandas as pd
+import scipy
 import seaborn as sns
 from sklearn.preprocessing import quantile_transform
-import scipy
 
-from common import read_ohlc_series, get_rate_of_change
+from common import (
+	read_ohlc_series,
+	get_rate_of_change,
+	format_percentage,
+	print_table
+)
+from configuration import Configuration
 from ohlc import OhlcRecord
 from series import TimeSeries
 from strategy import Strategy
 
 VOLATILITY_DAYS: Final[int] = 20
 MOMENTUM_DAYS: Final[int] = 10
+GAIN_TO_PAIN_DAYS: Final[int] = 10
 REGIME_DAYS: Final[int] = 200
 DAYS_PER_YEAR: Final[float] = 365.25
+QUANTILE_RADIUS: Final[float] = 0.25
 
-def render_heatmap_all(symbol: str, start: pd.Timestamp, end: pd.Timestamp) -> None:
+class HeatmapFeature:
+	id_: str
+	description: str
+	values: list[float]
+
+	def __init__(self, id_: str, description: str):
+		self.id_ = id_
+		self.description = description
+		self.values = []
+
+	def append(self, value: float) -> None:
+		self.values.append(value)
+
+class HeatmapData:
+	y_values: list[float]
+	momentum2: HeatmapFeature
+	momentum3: HeatmapFeature
+	momentum10: HeatmapFeature
+	regime: HeatmapFeature
+	volume: HeatmapFeature
+	open_interest: HeatmapFeature
+	volatility: HeatmapFeature
+
+	def __init__(self):
+		self.y_values = []
+		self.momentum2 = HeatmapFeature("momentum2", "Momentum (2 Days)")
+		self.momentum3 = HeatmapFeature("momentum3", "Momentum (3 Days)")
+		self.momentum10 = HeatmapFeature("momentum10", f"Momentum ({MOMENTUM_DAYS} Days)")
+		self.gain_to_pain = HeatmapFeature("gain2pain", f"Gain to Pain ({GAIN_TO_PAIN_DAYS} Days)")
+		self.regime = HeatmapFeature("regime", "Regime")
+		self.volume = HeatmapFeature("volume", "Change in volume from yesterday")
+		self.open_interest = HeatmapFeature("interest", "Change in open interest from yesterday")
+		self.volatility = HeatmapFeature("volatility", f"Volatility ({VOLATILITY_DAYS} Days)")
+
+	def get_values(self) -> dict[str, tuple[str, Any]]:
+		output = {}
+		features = [
+			self.momentum2,
+			self.momentum3,
+			self.momentum10,
+			self.regime,
+			self.gain_to_pain,
+			self.volume,
+			self.open_interest,
+			self.volatility
+		]
+		for feature in features:
+			quantile_values = get_quantile_transform(feature.values)
+			output[feature.id_] = (feature.description, quantile_values)
+		return output
+
+def render_heatmap_all(symbol: str, start: pd.Timestamp, end: pd.Timestamp, statistics_only: bool) -> None:
 	combinations = [
-		("return1", "return2"),
-		("return1", "momentum"),
-		("return1", "regime"),
-		("return1", "volume"),
-		("return1", "interest"),
-		("return1", "volatility"),
-		# ("return2", "volume"),
-		# ("return2", "interest"),
-		# ("return2", "volatility"),
+		("momentum2", "momentum3"),
+		("momentum2", "momentum10"),
+		("momentum2", "regime"),
+		("momentum2", "gain2pain"),
+		("momentum2", "volume"),
+		("momentum2", "interest"),
+		("momentum2", "volatility"),
+		# ("momentum3", "volume"),
+		# ("momentum3", "interest"),
+		# ("momentum3", "volatility"),
 		# ("volume", "interest"),
 		# ("volume", "volatility"),
 	]
 	quantiles = 5
 	series = read_ohlc_series(symbol)
 	for x_axis, y_axis in combinations:
-		render_heatmap(symbol, start, end, x_axis, y_axis, quantiles, series)
+		render_heatmap(symbol, start, end, x_axis, y_axis, quantiles, series, statistics_only)
 
 def render_heatmap(
 	symbol: str,
@@ -47,20 +109,14 @@ def render_heatmap(
 	x_axis: str,
 	y_axis: str,
 	quantiles: int,
-	series: TimeSeries[OhlcRecord] | None = None
+	series: TimeSeries[OhlcRecord] | None = None,
+	statistics_only: bool = False
 ) -> None:
 	assert start < end
 	assert quantiles >= 2
 	if series is None:
 		series = read_ohlc_series(symbol)
-	y_values: list[float] = []
-	return1_values: list[float] = []
-	return2_values: list[float] = []
-	momentum_values: list[float] = []
-	regime_values: list[float] = []
-	volume_values: list[float] = []
-	open_interest_values: list[float] = []
-	volatility_values: list[float] = []
+	data = HeatmapData()
 	time = start
 	first_record_time = next(iter(series))
 	if time < first_record_time:
@@ -77,23 +133,30 @@ def render_heatmap(
 		yesterday = records[1]
 		y = get_rate_of_change(tomorrow.close, today.close)
 		returns = [get_rate_of_change(a.close, b.close) for a, b in zip(records[1:], records)]
-		return1 = returns[0]
-		return2 = returns[1]
-		momentum = get_rate_of_change(records[0].close, records[MOMENTUM_DAYS - 1].close)
+		momentum2 = returns[0]
+		momentum3 = get_rate_of_change(today.close, records[2].close)
+		momentum10 = get_rate_of_change(records[0].close, records[MOMENTUM_DAYS - 1].close)
 		regime = get_rate_of_change(records[0].close, records[REGIME_DAYS - 1].close)
+		gains = [x for x in returns[:GAIN_TO_PAIN_DAYS] if x > 0]
+		losses = [abs(x) for x in returns[:GAIN_TO_PAIN_DAYS] if x < 0]
+		if len(gains) > 0 and len(losses) > 0:
+			gain_to_pain = mean(gains) / mean(losses)
+		else:
+			gain_to_pain = 0
 		# Workaround for zero volume record in SI
 		volume = get_rate_of_change(today.volume, max(yesterday.volume, 1))
 		# Workaround for zero open interest record in 6E
 		open_interest = get_rate_of_change(today.open_interest, max(yesterday.open_interest, 1))
 		volatility = stdev(returns[:VOLATILITY_DAYS]) * sqrt(VOLATILITY_DAYS)
-		y_values.append(y)
-		return1_values.append(return1)
-		return2_values.append(return2)
-		momentum_values.append(momentum)
-		regime_values.append(regime)
-		volume_values.append(volume)
-		open_interest_values.append(open_interest)
-		volatility_values.append(volatility)
+		data.y_values.append(y)
+		data.momentum2.append(momentum2)
+		data.momentum3.append(momentum3)
+		data.momentum10.append(momentum10)
+		data.regime.append(regime)
+		data.gain_to_pain.append(gain_to_pain)
+		data.volume.append(volume)
+		data.open_interest.append(open_interest)
+		data.volatility.append(volatility)
 		time += one_day
 	render_quantile_data(
 		symbol,
@@ -102,14 +165,8 @@ def render_heatmap(
 		x_axis,
 		y_axis,
 		quantiles,
-		y_values,
-		return1_values,
-		return2_values,
-		momentum_values,
-		regime_values,
-		volume_values,
-		open_interest_values,
-		volatility_values
+		statistics_only,
+		data
 	)
 
 def render_quantile_data(
@@ -119,33 +176,15 @@ def render_quantile_data(
 	x_axis: str,
 	y_axis: str,
 	quantiles: int,
-	y_values: list[float],
-	return1_values: list[float],
-	return2_values: list[float],
-	momentum_values: list[float],
-	regime_values: list[float],
-	volume_values: list[float],
-	open_interest_values: list[float],
-	volatility_values: list[float]
+	statistics_only: bool,
+	data: HeatmapData
 ) -> None:
-	return1_quantiles = get_quantile_transform(return1_values)
-	return2_quantiles = get_quantile_transform(return2_values)
-	momentum_quantiles = get_quantile_transform(momentum_values)
-	regime_quantiles = get_quantile_transform(regime_values)
-	volume_quantiles = get_quantile_transform(volume_values)
-	open_interest_quantiles = get_quantile_transform(open_interest_values)
-	volatility_quantiles = get_quantile_transform(volatility_values)
-	values = {
-		"return1": ("Previous day's returns", return1_quantiles),
-		"return2": ("Day before yesterday's returns", return2_quantiles),
-		"momentum": (f"{MOMENTUM_DAYS}-Day Momentum", momentum_quantiles),
-		"regime": ("Regime", regime_quantiles),
-		"volume": ("Change in volume from yesterday", volume_quantiles),
-		"interest": ("Change in open interest from yesterday", open_interest_quantiles),
-		"volatility": (f"{VOLATILITY_DAYS}-Day volatility", volatility_quantiles)
-	}
+	values = data.get_values()
 	x_axis_title, x_axis_values = values[x_axis]
 	y_axis_title, y_axis_values = values[y_axis]
+	perform_t_test(x_axis, y_axis, x_axis_values, y_axis_values, data.y_values)
+	if statistics_only:
+		return
 	mean_returns_matrix = np.zeros((quantiles, quantiles))
 	annotations = np.empty((quantiles, quantiles), dtype=object)
 	for i in range(quantiles):
@@ -153,7 +192,7 @@ def render_quantile_data(
 			x_quantile_min, x_quantile_max = get_quantile_limits(i, quantiles)
 			y_quantile_min, y_quantile_max = get_quantile_limits(j, quantiles)
 			matching_y_values = []
-			for k, y in enumerate(y_values):
+			for k, y in enumerate(data.y_values):
 				x_quantile = x_axis_values[k]
 				y_quantile = y_axis_values[k]
 				x_match = x_quantile_min < x_quantile < x_quantile_max
@@ -177,7 +216,10 @@ def render_quantile_data(
 				annotations[i, j] = f"No samples"
 	plt.figure(figsize=(12, 8))
 	tick_labels = [f"Quantile {i + 1}" for i in range(quantiles)]
-	sns.heatmap(mean_returns_matrix, annot=annotations, fmt="", xticklabels=tick_labels, yticklabels=tick_labels)
+	ax = sns.heatmap(mean_returns_matrix, annot=annotations, fmt="", xticklabels=tick_labels, yticklabels=tick_labels)
+	cbar = ax.collections[0].colorbar
+	formatter = ticker.FuncFormatter(lambda x, _: f"{x * 100:.2f}%")
+	cbar.ax.yaxis.set_major_formatter(formatter)
 	plt.title(f"Single Day Returns of {symbol} by Feature Quantiles\n(from {format_date(start)} to {format_date(end)})")
 	plt.xlabel(x_axis_title)
 	plt.ylabel(y_axis_title)
@@ -197,3 +239,91 @@ def get_quantile_transform(values: list[float]) -> npt.NDArray:
 	array = np.array(values).reshape(-1, 1)
 	output = quantile_transform(array)
 	return output
+
+def perform_t_test(
+	x_axis: str,
+	y_axis: str,
+	x_values: list[float],
+	y_values: list[float],
+	returns_values: list[float]
+) -> None:
+	corners = [
+		(0, 0),
+		(0, 1),
+		(1, 0),
+		(1, 1)
+	]
+	padding = 10
+	headers = [
+		x_axis.ljust(padding),
+		y_axis.ljust(padding),
+		"Hypothesis",
+		"t-statistic",
+		"p-value",
+		"Mean (positive)",
+		"Mean (negative)",
+		"Positive samples"
+	]
+	table = [headers]
+	for a, b in corners:
+		positive = []
+		negative = []
+		for x, y, returns in zip(x_values, y_values, returns_values):
+			if (x - (1 - a))**2 + (y - (1 - b))**2 <= QUANTILE_RADIUS**2:
+				positive.append(returns)
+			else:
+				negative.append(returns)
+		greater_statistic = scipy.stats.ttest_ind(
+			a=positive,
+			b=negative,
+			equal_var=False,
+			nan_policy="raise",
+			random_state=Configuration.SEED,
+			alternative="greater"
+		)
+		less_statistic = scipy.stats.ttest_ind(
+			a=positive,
+			b=negative,
+			equal_var=False,
+			nan_policy="raise",
+			random_state=Configuration.SEED,
+			alternative="less"
+		)
+		statistics = [
+			(greater_statistic, "Greater"),
+			(less_statistic, "Less")
+		]
+		best_statistic, best_hypothesis = min(statistics, key=lambda t: t[0].pvalue)
+		if len(positive) > 0:
+			mean_positive = mean(positive)
+		else:
+			mean_positive = 0
+		if len(negative) > 0:
+			mean_negative = mean(negative)
+		else:
+			mean_negative = 0
+		positive_balance = len(positive) / len(x_values)
+		row = [
+			a,
+			b,
+			best_hypothesis,
+			format_t_statistic(best_statistic.statistic),
+			format_p_value(best_statistic.pvalue),
+			format_percentage(mean_positive),
+			format_percentage(mean_negative),
+			f"{positive_balance:.2%}"
+		]
+		table.append(row)
+	print_table(table, always_right=True)
+
+def format_t_statistic(statistic: float) -> str:
+	if abs(statistic) > 2.0:
+		return f"{Fore.GREEN}{statistic:.3f}{Style.RESET_ALL}"
+	else:
+		return f"{statistic:.3f}"
+
+def format_p_value(statistic: float) -> str:
+	if statistic < 0.025:
+		return f"{Fore.GREEN}{statistic:.3f}{Style.RESET_ALL}"
+	else:
+		return f"{statistic:.3f}"

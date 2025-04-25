@@ -53,9 +53,12 @@ def format_ratio(ratio: float | None) -> str:
 	else:
 		return f"{Fore.RED}{ratio_string}{Style.RESET_ALL}"
 
-def print_table(table: list[list[Any]], headers: bool = True):
+def print_table(table: list[list[Any]], headers: bool = True, always_right: bool = False):
 	numeric_columns = len(table[0]) - 1
-	column_alignment = ("left",) + numeric_columns * ("right",)
+	if always_right:
+		column_alignment = len(table[0]) * ("right",)
+	else:
+		column_alignment = ("left",) + numeric_columns * ("right",)
 	headers = "firstrow" if headers else []
 	table_string = tabulate(table, headers=headers, tablefmt="simple_outline", disable_numparse=True, colalign=column_alignment)
 	print(table_string)

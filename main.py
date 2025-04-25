@@ -27,11 +27,15 @@ def main() -> None:
 	group.add_argument("--chart", metavar="SYMBOLS", nargs="*", help=chart_help)
 
 	heatmap_help = "Render a heatmap of one-day returns of the specified symbol based on the quantiles of the two specified features\n"
-	heatmap_help += "Supported features: return1, return2, momentum, regime, volume, interest, volatility"
+	heatmap_help += "Supported features: momentum2, momentum3, momentum10, regime, gain2pain, volume, interest, volatility"
 	heatmap_help += "The number of quantiles determines the number of cells in the heatmap"
 	heatmap_help += "Requires the use of --start and --end"
 	group.add_argument("--heatmap", metavar=("SYMBOL", "FEATURE1", "FEATURE2", "QUANTILES"), nargs=4, help=heatmap_help)
-	group.add_argument("--heatmap-all", metavar="SYMBOL", help="Render all heatmaps for the specified symbol")
+
+	heatmap_all_help = "Render all heatmaps for the specified symbol"
+	heatmap_all_help += "Add --statistics to reduce output to just Welch's t-test"
+	group.add_argument("--heatmap-all", metavar="SYMBOL", help=heatmap_all_help)
+	parser.add_argument("--statistics", action="store_true", help="Do not render heatmaps, print tables only")
 
 	seasonality_help = "Analyze seasonality of the specified symbols\n"
 	seasonality_help += "Requires the use of --start, --split and --end"
@@ -46,7 +50,7 @@ def main() -> None:
 	parser.add_argument("--split", metavar="DATE", type=get_date_argument, help="Date at which to split in-sample and out-of-sample data")
 	parser.add_argument("--end", metavar="DATE", type=get_date_argument, help="Read no data after this date")
 
-	parser.add_argument("--momentum", metavar="SYMBOLS", nargs="*", help="Analyze momentum correlation of a symbol")
+	group.add_argument("--momentum", metavar="SYMBOLS", nargs="*", help="Analyze momentum correlation of a symbol")
 
 	backtest_help = "Perform a backtest using the strategies defined in backtest_test.py\n"
 	backtest_help += "Requires the use of --start and --end"
@@ -80,7 +84,8 @@ def main() -> None:
 		symbol = args.heatmap_all
 		start: pd.Timestamp = args.start
 		end: pd.Timestamp = args.end
-		render_heatmap_all(symbol, start, end)
+		statistics_only: bool = args.statistics
+		render_heatmap_all(symbol, start, end, statistics_only)
 	elif args.seasonality is not None:
 		assert args.start is not None and args.split is not None and args.end is not None
 		symbols: list[str] = args.seasonality

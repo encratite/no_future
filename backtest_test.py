@@ -45,8 +45,11 @@ def perform_backtest(start: pd.Timestamp, end: pd.Timestamp) -> None:
 		# "LE",
 		# Currencies
 		# "6E",
+		# "6J",
 		# "6B",
 		# "6S",
+		# "6C",
+		# "6A"
 		# Rates
 		"ZB",
 		# "ZN",
