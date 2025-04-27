@@ -11,7 +11,7 @@ class BacktestResult:
 	annual_average_profit: float
 	starting_capital: float
 	total_return: float
-	compound_annual_growth_rate: float
+	mean_annual_return: float
 	max_drawdown: float
 	sharpe_ratio: float | None
 	sortino_ratio: float | None
@@ -34,7 +34,7 @@ class BacktestResult:
 		self.starting_capital = initial_cash
 		return_ratio = final_cash / initial_cash
 		self.total_return = return_ratio - 1
-		self.compound_annual_growth_rate = return_ratio**(1 / years) - 1
+		self.mean_annual_return = self.total_return / years
 		self.max_drawdown = max_drawdown
 		risk_free_rate = self._get_risk_free_rate(start, end, asset_manager)
 		sharpe_ratio, sortino_ratio = self._get_ratios(equity_curve, risk_free_rate)

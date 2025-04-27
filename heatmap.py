@@ -1,9 +1,9 @@
+import os
 import warnings
-from math import sqrt
-from statistics import stdev, mean
+from math import sqrt, prod
+from statistics import mean, stdev
 from typing import Final, Any
 
-from colorama import Fore, Style
 import matplotlib.pyplot as plt
 import matplotlib.ticker as ticker
 import numpy as np
@@ -11,6 +11,7 @@ import numpy.typing as npt
 import pandas as pd
 import scipy
 import seaborn as sns
+from colorama import Fore, Style
 from sklearn.preprocessing import quantile_transform
 
 from common import (
@@ -25,8 +26,6 @@ from series import TimeSeries
 from strategy import Strategy
 
 VOLATILITY_DAYS: Final[int] = 20
-MOMENTUM_DAYS: Final[int] = 10
-GAIN_TO_PAIN_DAYS: Final[int] = 10
 REGIME_DAYS: Final[int] = 200
 DAYS_PER_YEAR: Final[float] = 365.25
 QUANTILE_RADIUS: Final[float] = 0.25
@@ -58,8 +57,7 @@ class HeatmapData:
 		self.y_values = []
 		self.momentum2 = HeatmapFeature("momentum2", "Momentum (2 Days)")
 		self.momentum3 = HeatmapFeature("momentum3", "Momentum (3 Days)")
-		self.momentum10 = HeatmapFeature("momentum10", f"Momentum ({MOMENTUM_DAYS} Days)")
-		self.gain_to_pain = HeatmapFeature("gain2pain", f"Gain to Pain ({GAIN_TO_PAIN_DAYS} Days)")
+		self.momentum10 = HeatmapFeature("momentum10", f"Momentum (10 Days)")
 		self.regime = HeatmapFeature("regime", "Regime")
 		self.volume = HeatmapFeature("volume", "Change in volume from yesterday")
 		self.open_interest = HeatmapFeature("interest", "Change in open interest from yesterday")
@@ -72,7 +70,6 @@ class HeatmapData:
 			self.momentum3,
 			self.momentum10,
 			self.regime,
-			self.gain_to_pain,
 			self.volume,
 			self.open_interest,
 			self.volatility
@@ -87,7 +84,6 @@ def render_heatmap_all(symbol: str, start: pd.Timestamp, end: pd.Timestamp, stat
 		("momentum2", "momentum3"),
 		("momentum2", "momentum10"),
 		("momentum2", "regime"),
-		("momentum2", "gain2pain"),
 		("momentum2", "volume"),
 		("momentum2", "interest"),
 		("momentum2", "volatility"),
@@ -128,21 +124,15 @@ def render_heatmap(
 			time += one_day
 			continue
 		tomorrow = series.get(time + one_day, right=True)
-		records = series.get(time, count=max(VOLATILITY_DAYS, MOMENTUM_DAYS, REGIME_DAYS) + 1)
+		records = series.get(time, count=REGIME_DAYS + 1)
 		today = records[0]
 		yesterday = records[1]
 		y = get_rate_of_change(tomorrow.close, today.close)
 		returns = [get_rate_of_change(a.close, b.close) for a, b in zip(records[1:], records)]
 		momentum2 = returns[0]
 		momentum3 = get_rate_of_change(today.close, records[2].close)
-		momentum10 = get_rate_of_change(records[0].close, records[MOMENTUM_DAYS - 1].close)
+		momentum10 = get_rate_of_change(records[0].close, records[10 - 1].close)
 		regime = get_rate_of_change(records[0].close, records[REGIME_DAYS - 1].close)
-		gains = [x for x in returns[:GAIN_TO_PAIN_DAYS] if x > 0]
-		losses = [abs(x) for x in returns[:GAIN_TO_PAIN_DAYS] if x < 0]
-		if len(gains) > 0 and len(losses) > 0:
-			gain_to_pain = mean(gains) / mean(losses)
-		else:
-			gain_to_pain = 0
 		# Workaround for zero volume record in SI
 		volume = get_rate_of_change(today.volume, max(yesterday.volume, 1))
 		# Workaround for zero open interest record in 6E
@@ -153,7 +143,6 @@ def render_heatmap(
 		data.momentum3.append(momentum3)
 		data.momentum10.append(momentum10)
 		data.regime.append(regime)
-		data.gain_to_pain.append(gain_to_pain)
 		data.volume.append(volume)
 		data.open_interest.append(open_interest)
 		data.volatility.append(volatility)
@@ -166,7 +155,8 @@ def render_heatmap(
 		y_axis,
 		quantiles,
 		statistics_only,
-		data
+		data,
+		series
 	)
 
 def render_quantile_data(
@@ -177,12 +167,13 @@ def render_quantile_data(
 	y_axis: str,
 	quantiles: int,
 	statistics_only: bool,
-	data: HeatmapData
+	data: HeatmapData,
+	series: TimeSeries[OhlcRecord]
 ) -> None:
 	values = data.get_values()
 	x_axis_title, x_axis_values = values[x_axis]
 	y_axis_title, y_axis_values = values[y_axis]
-	perform_t_test(x_axis, y_axis, x_axis_values, y_axis_values, data.y_values)
+	perform_t_test(x_axis, y_axis, x_axis_values, y_axis_values, data.y_values, series, start, end)
 	if statistics_only:
 		return
 	mean_returns_matrix = np.zeros((quantiles, quantiles))
@@ -245,7 +236,10 @@ def perform_t_test(
 	y_axis: str,
 	x_values: list[float],
 	y_values: list[float],
-	returns_values: list[float]
+	returns_values: list[float],
+	series: TimeSeries[OhlcRecord],
+	start: pd.Timestamp,
+	end: pd.Timestamp
 ) -> None:
 	corners = [
 		(0, 0),
@@ -262,6 +256,10 @@ def perform_t_test(
 		"p-value",
 		"Mean (positive)",
 		"Mean (negative)",
+		"Return (positive)",
+		"Return (negative)",
+		"SR (positive)",
+		"SR (negative)",
 		"Positive samples"
 	]
 	table = [headers]
@@ -269,7 +267,7 @@ def perform_t_test(
 		positive = []
 		negative = []
 		for x, y, returns in zip(x_values, y_values, returns_values):
-			if (x - (1 - a))**2 + (y - (1 - b))**2 <= QUANTILE_RADIUS**2:
+			if (x - (1 - a)) ** 2 + (y - (1 - b)) ** 2 < QUANTILE_RADIUS ** 2:
 				positive.append(returns)
 			else:
 				negative.append(returns)
@@ -290,10 +288,10 @@ def perform_t_test(
 			alternative="less"
 		)
 		statistics = [
-			(greater_statistic, "Greater"),
-			(less_statistic, "Less")
+			(greater_statistic, "Greater", 1),
+			(less_statistic, "Less", -1)
 		]
-		best_statistic, best_hypothesis = min(statistics, key=lambda t: t[0].pvalue)
+		best_statistic, best_hypothesis, returns_multiplier = min(statistics, key=lambda t: t[0].pvalue)
 		if len(positive) > 0:
 			mean_positive = mean(positive)
 		else:
@@ -302,6 +300,8 @@ def perform_t_test(
 			mean_negative = mean(negative)
 		else:
 			mean_negative = 0
+		positive_returns = [returns_multiplier * x for x in positive]
+		negative_returns = [returns_multiplier * x for x in negative]
 		positive_balance = len(positive) / len(x_values)
 		row = [
 			a,
@@ -311,6 +311,10 @@ def perform_t_test(
 			format_p_value(best_statistic.pvalue),
 			format_percentage(mean_positive),
 			format_percentage(mean_negative),
+			get_mean_annual_returns(positive, start, end),
+			get_mean_annual_returns(negative, start, end),
+			get_sharpe_ratio(positive_returns, start, end, series),
+			get_sharpe_ratio(negative_returns, start, end, series),
 			f"{positive_balance:.2%}"
 		]
 		table.append(row)
@@ -327,3 +331,36 @@ def format_p_value(statistic: float) -> str:
 		return f"{Fore.GREEN}{statistic:.3f}{Style.RESET_ALL}"
 	else:
 		return f"{statistic:.3f}"
+
+def get_mean_annual_returns(class_returns: list[float], start: pd.Timestamp, end: pd.Timestamp) -> str:
+	total = prod([x + 1 for x in class_returns])
+	years = (end - start).days / 365.25
+	mean_annual_returns = format_percentage((total - 1) / years)
+	return mean_annual_returns
+
+def get_risk_free_rate(start: pd.Timestamp, end: pd.Timestamp, series: TimeSeries[OhlcRecord]) -> float:
+	t_bills_path = os.path.join(Configuration.FRED_DIRECTORY, "TB3MS.csv")
+	t_bills = TimeSeries.read_csv(t_bills_path, True)
+	risk_free_rate_values = []
+	time_range = [x for x in series if start <= x < end]
+	for time in time_range:
+		risk_free_rate = t_bills.get(time) / 100
+		risk_free_rate_values.append(risk_free_rate)
+	mean_risk_free_rate = mean(risk_free_rate_values)
+	return mean_risk_free_rate
+
+def get_sharpe_ratio(daily_returns: list[float], start: pd.Timestamp, end: pd.Timestamp, series: TimeSeries[OhlcRecord]) -> str:
+	trading_days_per_year: Final[int] = 252
+
+	risk_free_rate = get_risk_free_rate(start, end, series)
+	mean_daily_returns = mean(daily_returns)
+	daily_standard_deviation = stdev(daily_returns)
+	mean_annual_returns = trading_days_per_year * mean_daily_returns
+	standard_deviation_factor = sqrt(trading_days_per_year)
+	standard_deviation = standard_deviation_factor * daily_standard_deviation
+	excess_returns = mean_annual_returns - risk_free_rate
+	if standard_deviation == 0:
+		return "-"
+
+	sharpe_ratio = excess_returns / standard_deviation
+	return f"{sharpe_ratio:.2f}"

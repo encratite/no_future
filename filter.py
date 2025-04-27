@@ -6,6 +6,8 @@ from ohlc import OhlcRecord
 class ContractFilter:
 	# Only set if the exchange symbol is different from the Barchart symbol
 	exchange_symbol: str | None
+	# Copy the contract to this symbol (convenient for micro contracts)
+	copy: str | None
 	# Limits the number to Fn records, such that 1 <= n <= f_records_limit
 	f_records_limit: int | None
 	# Enables the generation of records for the nearest contract that is at least one year behind the front contract
@@ -26,6 +28,7 @@ class ContractFilter:
 	def __init__(
 		self,
 		exchange_symbol: str | None = None,
+		copy: str | None = None,
 		f_records_limit: int | None = None,
 		enable_fy_records: bool = True,
 		legacy_cutoff: str | None = None,
@@ -36,6 +39,7 @@ class ContractFilter:
 		cutoff_date: str | None = None
 	) -> None:
 		self.exchange_symbol = exchange_symbol
+		self.copy = copy
 		self.f_records_limit = f_records_limit
 		self.enable_fy_records = enable_fy_records
 		self._legacy_cutoff = GlobexCode(legacy_cutoff) if legacy_cutoff is not None else None

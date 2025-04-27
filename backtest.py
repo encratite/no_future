@@ -10,7 +10,13 @@ from asset import Asset
 from backtest_configuration import BacktestConfiguration
 from backtest_interface import BacktestInterface
 from backtest_result import BacktestResult
-from common import format_percentage, format_money, format_ratio, print_table, format_coord
+from common import (
+	format_percentage,
+	format_money,
+	format_ratio,
+	print_table,
+	format_coord
+)
 from configuration import Configuration
 from manager import AssetManager
 from ohlc import OhlcRecord
@@ -151,7 +157,7 @@ class Backtest:
 			["Annual Average Profit", format_money(result.annual_average_profit)],
 			["Starting Capital", format_money(result.starting_capital)],
 			["Total Return", format_percentage(result.total_return)],
-			["Compound Annual Growth Rate", format_percentage(result.compound_annual_growth_rate)],
+			["Mean Annual Return", format_percentage(result.mean_annual_return)],
 			["Sharpe Ratio", format_ratio(result.sharpe_ratio)],
 			["Sortino Ratio", format_ratio(result.sortino_ratio)],
 			["Max Drawdown", format_percentage(result.max_drawdown)]

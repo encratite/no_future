@@ -49,6 +49,8 @@ def generate_contract(symbol: str) -> None:
 	else:
 		exchange_symbol = symbol
 	write_contract_files(exchange_symbol, record_offsets)
+	if contract_filter.copy is not None:
+		write_contract_files(contract_filter.copy, record_offsets)
 
 def get_time_key(time_records: tuple[pd.Timestamp, list[OhlcRecord]]) -> pd.Timestamp:
 	time, _records = time_records
