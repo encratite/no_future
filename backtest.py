@@ -37,6 +37,8 @@ class Backtest:
 	_max_account_value: float
 	_max_drawdown: float
 	_drawdown: list[float]
+	_trades: int
+	_profitable_trades: int
 	_terminated: bool
 
 	def __init__(
@@ -59,6 +61,8 @@ class Backtest:
 		self._max_account_value = self._cash
 		self._max_drawdown = 0
 		self._drawdown = []
+		self._trades = 0
+		self._profitable_trades = 0
 		self._terminated = False
 
 	def run(self) -> BacktestResult:
@@ -160,7 +164,9 @@ class Backtest:
 			["Mean Annual Return", format_percentage(result.mean_annual_return)],
 			["Sharpe Ratio", format_ratio(result.sharpe_ratio)],
 			["Sortino Ratio", format_ratio(result.sortino_ratio)],
-			["Max Drawdown", format_percentage(result.max_drawdown)]
+			["Max Drawdown", format_percentage(result.max_drawdown)],
+			["Round-Trips", result.trades],
+			["Hit Rate", f"{result.hit_rate:.1%}"]
 		]
 		print_table(table, False)
 
@@ -172,6 +178,8 @@ class Backtest:
 			self._max_drawdown,
 			self._configuration.initial_cash,
 			self._cash,
+			self._trades,
+			self._profitable_trades,
 			self._asset_manager
 		)
 		return result
@@ -253,16 +261,17 @@ class Backtest:
 		if count is None:
 			matching_positions = [x for x in self._positions if x.symbol == symbol]
 			for position in matching_positions:
-				value, _bid, fees = self._get_position_value(position, position.count)
+				value, _bid, fees, profitable = self._get_position_value(position, position.count)
 				self._cash += value
 				self._fees += fees
 				self._positions.remove(position)
+				self._count_trade(profitable)
 		else:
 			while count > 0:
-				position = next((x for x in self._positions if x.symbol == symbol), None)
+				position = next((x for x in self._positions if x.symbol == symbol), None) # type: ignore
 				assert position is not None
 				close_count = min(position.count, count)
-				value, _bid, fees = self._get_position_value(position, close_count)
+				value, _bid, fees, profitable = self._get_position_value(position, close_count)
 				self._cash += value
 				self._fees += fees
 				new_count = position.count - close_count
@@ -271,10 +280,16 @@ class Backtest:
 					position.count = new_count
 				else:
 					self._positions.remove(position)
+				self._count_trade(profitable)
 
 	def _close_all_positions(self) -> None:
 		for position in list(self._positions):
 			self._close_position(position.symbol, position.count)
+
+	def _count_trade(self, profitable: bool) -> None:
+		if profitable:
+			self._profitable_trades += 1
+		self._trades += 1
 
 	def _get_position_info(self, symbol: str) -> tuple[int, PositionSide | None]:
 		matching_positions = [x for x in self._positions if x.symbol == symbol]
@@ -286,7 +301,7 @@ class Backtest:
 			side = None
 		return count, side
 
-	def _get_position_value(self, position: Position, count: int) -> tuple[float, float, float]:
+	def _get_position_value(self, position: Position, count: int) -> tuple[float, float, float, bool]:
 		assert 1 <= count <= position.count
 		record = self._asset_manager.get_record(position.symbol, self._time)
 		margin = count * position.margin
@@ -304,12 +319,13 @@ class Backtest:
 		else:
 			fees = 0
 		value = margin + gain - fees
-		return value, bid, fees
+		profitable = profit > 0
+		return value, bid, fees, profitable
 
 	def _get_account_value(self) -> float:
 		account_value = self._cash
 		for position in self._positions:
-			position_value, _, _ = self._get_position_value(position, position.count)
+			position_value, _, _, _ = self._get_position_value(position, position.count)
 			account_value += position_value
 		return account_value
 

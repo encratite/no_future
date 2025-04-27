@@ -30,7 +30,7 @@ def perform_backtest(start: pd.Timestamp, end: pd.Timestamp) -> None:
 	delta = end_time - start_time
 	print(f"Loaded assets in {delta:.1f} s")
 	strategy = QuantileRadiusStrategy(symbol, QuantileFeatures.MOMENTUM2, QuantileFeatures.VOLUME, 0.25)
-	strategy.weight = 4
+	strategy.weight = 2
 	configuration = BacktestConfiguration(start, end, cash)
 	backtest = Backtest([strategy], configuration, asset_manager)
 	result = backtest.run()
@@ -38,7 +38,7 @@ def perform_backtest(start: pd.Timestamp, end: pd.Timestamp) -> None:
 	end_time = perf_counter()
 	delta = end_time - start_time
 	print(f"Performed backtest in {delta:.1f} s")
-	# backtest.plot_equity_curve()
+	backtest.plot_equity_curve()
 
 def perform_wfo_backtest(symbol: str, start: pd.Timestamp, end: pd.Timestamp, wfo_years: int) -> None:
 	initial_cash = 100_000

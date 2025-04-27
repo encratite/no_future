@@ -12,6 +12,8 @@ class BacktestResult:
 	starting_capital: float
 	total_return: float
 	mean_annual_return: float
+	trades: int
+	hit_rate: float
 	max_drawdown: float
 	sharpe_ratio: float | None
 	sortino_ratio: float | None
@@ -24,6 +26,8 @@ class BacktestResult:
 		max_drawdown: float,
 		initial_cash: float,
 		final_cash: float,
+		trades: int,
+		profitable_trades: int,
 		asset_manager: AssetManager
 	):
 		days_per_year: Final[float] = 365.25
@@ -35,6 +39,8 @@ class BacktestResult:
 		return_ratio = final_cash / initial_cash
 		self.total_return = return_ratio - 1
 		self.mean_annual_return = self.total_return / years
+		self.trades = trades
+		self.hit_rate = profitable_trades / trades
 		self.max_drawdown = max_drawdown
 		risk_free_rate = self._get_risk_free_rate(start, end, asset_manager)
 		sharpe_ratio, sortino_ratio = self._get_ratios(equity_curve, risk_free_rate)
