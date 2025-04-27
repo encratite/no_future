@@ -24,7 +24,7 @@ from strategy import (
 def perform_backtest(start: pd.Timestamp, end: pd.Timestamp) -> None:
 	cash = 100_000
 	start_time = perf_counter()
-	symbol = "MGC"
+	symbol = "GC"
 	asset_manager = AssetManager([symbol])
 	end_time = perf_counter()
 	delta = end_time - start_time

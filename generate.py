@@ -3,7 +3,6 @@ import os
 import re
 from collections import defaultdict
 from copy import copy
-import time
 from typing import Any, cast
 
 import pandas as pd
@@ -48,9 +47,7 @@ def generate_contract(symbol: str) -> None:
 		exchange_symbol = contract_filter.exchange_symbol
 	else:
 		exchange_symbol = symbol
-	write_contract_files(exchange_symbol, record_offsets)
-	if contract_filter.copy is not None:
-		write_contract_files(contract_filter.copy, record_offsets)
+	write_contract_files(exchange_symbol, record_offsets, contract_filter)
 
 def get_time_key(time_records: tuple[pd.Timestamp, list[OhlcRecord]]) -> pd.Timestamp:
 	time, _records = time_records
@@ -144,7 +141,7 @@ def generate_fy_records(
 		else:
 			record_offsets[fy_key].append((record, 0))
 
-def write_contract_files(symbol: str, record_offsets: dict[str, list[tuple[OhlcRecord, float]]]) -> None:
+def write_contract_files(symbol: str, record_offsets: dict[str, list[tuple[OhlcRecord, float]]], contract_filter: ContractFilter) -> None:
 	for f_key, records in record_offsets.items():
 		# Calculate global offset from differences between contracts, in reverse
 		global_offset = 0
@@ -168,8 +165,14 @@ def write_contract_files(symbol: str, record_offsets: dict[str, list[tuple[OhlcR
 			df_dict["volume"].append(record.volume)
 			df_dict["open_interest"].append(record.open_interest)
 		df = pd.DataFrame(df_dict)
-		output_path = os.path.join(Configuration.FEATHER_DIRECTORY, f"{symbol}.{f_key}.feather")
-		df.to_feather(output_path)
+		output_symbols = [
+			symbol
+		]
+		if contract_filter.copy is not None:
+			output_symbols.append(contract_filter.copy)
+		for output_symbol in output_symbols:
+			output_path = os.path.join(Configuration.FEATHER_DIRECTORY, f"{output_symbol}.{f_key}.feather")
+			df.to_feather(output_path)
 
 def is_rollover_target(
 	record: OhlcRecord,
