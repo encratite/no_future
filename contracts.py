@@ -29,6 +29,7 @@ CONTRACT_CONFIGURATION: Final[dict[str, ContractFilter]] = {
 	"GR": ContractFilter("MGC", exclude_months=["V"]),
 	"HE": ContractFilter(legacy_cutoff="HEJ02", cutoff_date="2002-03-02"),
 	"HG": ContractFilter(legacy_cutoff="HGK03", include_months=["H", "K", "N", "U", "Z"]),
+	"HO": ContractFilter(legacy_cutoff="HOG01", cutoff_date="2000-05-04"),
 	"J6": ContractFilter("6J", legacy_cutoff="J6Z01", first_filter_contract="J6J17", include_months=["H", "M", "U", "Z"]),
 	"JM": ContractFilter("FXDS"),
 	"LE": ContractFilter(legacy_cutoff="LEG02", first_filter_contract="LEK03", last_filter_contract="LEK05", exclude_months=["F", "H", "K", "N", "U", "X"], cutoff_date="2003-10-02"),

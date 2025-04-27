@@ -5,7 +5,9 @@ import pandas as pd
 
 from backtest_test import perform_backtest, perform_wfo_backtest
 from chart import render_chart
+from chart_compare import render_comparison_chart
 from chart_seasonality import render_seasonality_chart, SeasonalityChartMode
+from chart_ratio import render_ratio_chart
 from generate import generate_all_contracts, generate_contract
 from momentum import analyze_momentum
 from seasonality import analyze_seasonality
@@ -25,6 +27,14 @@ def main() -> None:
 	chart_help += "By default this will display all available data\n"
 	chart_help += "Use --start and --end to limit the chart to a certain time range"
 	group.add_argument("--chart", metavar="SYMBOLS", nargs="*", help=chart_help)
+
+	compare_help = "Compare the specified symbols, with all initial prices normalized to 1.0\n"
+	compare_help += "Use --start and --end to limit the chart to a certain time range"
+	group.add_argument("--compare", metavar="SYMBOLS", nargs="*", help=compare_help)
+
+	chart_ratio_help = "Render a ratio chart using the specified symbols\n"
+	chart_ratio_help += "Use --start and --end to limit the chart to a certain time range"
+	group.add_argument("--chart-ratio", metavar=("BASE", "DIVISOR", "DIVIDEND"), nargs=3, help=chart_ratio_help)
 
 	heatmap_help = "Render a heatmap of one-day returns of the specified symbol based on the quantiles of the two specified features\n"
 	heatmap_help += "Supported features: momentum2, momentum3, momentum10, regime, gain2pain, volume, interest, volatility"
@@ -72,6 +82,21 @@ def main() -> None:
 		start: pd.Timestamp | None = args.start
 		end: pd.Timestamp | None = args.end
 		render_chart(symbols, start, end)
+	elif args.compare is not None:
+		assert args.start is not None and args.end is not None
+		symbols: list[str] = args.compare
+		start: pd.Timestamp | None = args.start
+		end: pd.Timestamp | None = args.end
+		render_comparison_chart(symbols, start, end)
+	elif args.chart_ratio is not None:
+		assert args.start is not None and args.end is not None
+		symbols: list[str] = args.chart_ratio
+		base_symbol = symbols[0]
+		dividend_symbol = symbols[1]
+		divisor_symbol = symbols[2]
+		start: pd.Timestamp | None = args.start
+		end: pd.Timestamp | None = args.end
+		render_ratio_chart(base_symbol, dividend_symbol, divisor_symbol, start, end)
 	elif args.heatmap is not None:
 		assert args.start is not None and args.end is not None
 		symbol, x_axis, y_axis, quantiles_string = args.heatmap

@@ -5,7 +5,13 @@ from typing import Final, cast
 
 import pandas as pd
 
-from common import format_percentage, print_table, read_ohlc_series, get_rate_of_change
+from common import (
+	format_percentage,
+	print_table,
+	read_ohlc_series,
+	get_rate_of_change
+)
+from strategy import Strategy
 
 TABLE_CONFIGS = [
 	("Symbol (Old)   ", lambda x: x.old_stats),
@@ -111,6 +117,8 @@ def analyze_seasonality_by_symbol(symbol: str, start: pd.Timestamp, split: pd.Ti
 	previous_record = None
 	symbol_stats = SymbolStats(symbol)
 	for time in ohlc_series:
+		if Strategy.is_banned_symbol(symbol, time):
+			continue
 		if time < start or time >= end:
 			continue
 		record = ohlc_series.get(time)
