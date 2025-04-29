@@ -1,12 +1,11 @@
-from collections import deque
-from statistics import mean, stdev
-from typing import Callable, Final
-from colorama import Fore, Style
 from functools import reduce
+from statistics import mean
+from typing import Callable
 
-import pandas as pd
 import matplotlib.pyplot as plt
+import pandas as pd
 import seaborn as sns
+from colorama import Fore, Style
 
 from common import (
 	read_ohlc_series,
@@ -15,77 +14,53 @@ from common import (
 	format_percentage
 )
 from ohlc import OhlcRecord
-from strategy import Strategy
 
 type PatternFunction = Callable[[list[OhlcRecord], PatternFeatures], bool]
 
-class ZScoreBuffer:
-	BUFFER_SIZE: Final[int] = 252
-
-	_buffer: deque[float]
-
-	def __init__(self) -> None:
-		self._buffer = deque()
-
-	def add(self, value: float) -> None:
-		self._buffer.append(value)
-		while len(self._buffer) > self.BUFFER_SIZE:
-			self._buffer.popleft()
-
-	def z_score(self) -> float:
-		most_recent_value = self._buffer[-1]
-		z_score = (most_recent_value - mean(self._buffer)) / stdev(self._buffer)
-		return z_score
-
-class ZScoreBuffers:
-	momentum2: ZScoreBuffer
-	momentum3: ZScoreBuffer
-	momentum5: ZScoreBuffer
-	momentum10: ZScoreBuffer
-
-	def __init__(self):
-		self.momentum2 = ZScoreBuffer()
-		self.momentum3 = ZScoreBuffer()
-		self.momentum5 = ZScoreBuffer()
-		self.momentum10 = ZScoreBuffer()
-
 class PatternFeatures:
-	momentum2_zscore: float
-	momentum3_zscore: float
-	momentum5_zscore: float
-	momentum10_zscore: float
+	momentum2: float
+	momentum3: float
+	momentum5: float
+	momentum10: float
+	returns: list[float]
 
-	def __init__(self, buffers: ZScoreBuffers):
-		self.momentum2_zscore = buffers.momentum2.z_score()
-		self.momentum3_zscore = buffers.momentum3.z_score()
-		self.momentum5_zscore = buffers.momentum5.z_score()
-		self.momentum10_zscore = buffers.momentum10.z_score()
+	def __init__(self, i: int, records: list[OhlcRecord]) -> None:
+		self.momentum2 = get_momentum(2, i, records)
+		self.momentum3 = get_momentum(3, i, records)
+		self.momentum5 = get_momentum(5, i, records)
+		self.momentum10 = get_momentum(10, i, records)
+		self.returns = [get_momentum(2, i - x, records) for x in range(4)]
 
 class Pattern:
 	name: str
+	_long: bool
 	_function: PatternFunction
 	_features: list[PatternFeatures]
 	_returns: list[float]
 	_return_times: list[pd.Timestamp]
 	_unmatched_returns: list[float]
 
-	def __init__(self, name: str, function: PatternFunction) -> None:
+	def __init__(self, name: str, long: bool, function: PatternFunction) -> None:
 		self.name = name
+		self._long = long
 		self._function = function
 		self._features = []
 		self._returns = []
 		self._return_times = []
 		self._unmatched_returns = []
 
-	def process(self, i: int, records: list[OhlcRecord], buffers: ZScoreBuffers) -> None:
+	def process(self, i: int, records: list[OhlcRecord]) -> None:
 		offset = i + 1
 		limit = 4
-		local_records = records[offset - limit: offset]
-		features = PatternFeatures(buffers)
+		local_records = list(reversed(records[offset - limit: offset]))
+		features = PatternFeatures(i, records)
 		match = self._function(local_records, features)
 		tomorrow = records[i + 1]
 		today = records[i]
-		returns = get_rate_of_change(tomorrow.close, today.close)
+		if self._long:
+			returns = get_rate_of_change(tomorrow.close, today.close)
+		else:
+			returns = get_rate_of_change(today.close, tomorrow.close)
 		if match:
 			self._features.append(features)
 			self._returns.append(returns)
@@ -96,14 +71,16 @@ class Pattern:
 	def has_samples(self) -> bool:
 		return len(self._features) > 0
 
-	def get_mean_returns(self) -> tuple[float, float]:
-		return mean(self._returns), mean(self._unmatched_returns)
+	def get_returns(self) -> tuple[float, float, float]:
+		total_return = 1
+		for returns in self._returns:
+			total_return *= 1 + returns
+		total_return -= 1
+		return mean(self._returns), mean(self._unmatched_returns), total_return
 
-	def get_hit_rate(self, short: bool) -> float:
+	def get_hit_rate(self) -> float:
 		gains = [x for x in self._returns if x > 0]
 		hit_rate = len(gains) / len(self._returns)
-		if short:
-			hit_rate = 1 - hit_rate
 		return hit_rate
 
 	def get_prevalence(self) -> tuple[float, int]:
@@ -126,49 +103,30 @@ class Pattern:
 def analyze_pattern(symbol: str, start: pd.Timestamp, end: pd.Timestamp) -> None:
 	assert start < end
 	patterns = [
-		Pattern("momentum2", lambda ohlc, features: features.momentum2_zscore > 1.5),
-		Pattern("-momentum2", lambda ohlc, features: features.momentum2_zscore < -1.5),
-		Pattern("momentum2, momentum3", lambda ohlc, features: features.momentum2_zscore > 1.5 and features.momentum3_zscore > 1.5),
-		Pattern("-momentum2, -momentum3", lambda ohlc, features: features.momentum2_zscore < -1.5 and features.momentum3_zscore < -1.5),
-		# Pattern("momentum2, momentum3, momentum5", lambda ohlc, features: features.momentum2_zscore > 1 and features.momentum3_zscore > 0.5 and features.momentum5_zscore > 0.5),
-		# Pattern("-momentum2, -momentum3, -momentum5", lambda ohlc, features: features.momentum2_zscore < -1 and features.momentum3_zscore < -0.5 and features.momentum5_zscore < -0.5),
-		Pattern("011, momentum2", lambda ohlc, features: ohlc[0].close > ohlc[1].close < ohlc[2].close and features.momentum2_zscore > 1.5),
-		Pattern("100, -momentum2", lambda ohlc, features: ohlc[0].close < ohlc[1].close > ohlc[2].close and features.momentum2_zscore < -1.5),
-		Pattern("011, high, momentum2", lambda ohlc, features: ohlc[0].close > ohlc[1].close < ohlc[2].close and ohlc[0].high < ohlc[2].high and ohlc[1].high < ohlc[2].high and features.momentum2_zscore > 1.5),
-		Pattern("100, low, -momentum2", lambda ohlc, features: ohlc[0].close < ohlc[1].close > ohlc[2].close and ohlc[0].low > ohlc[2].low and ohlc[1].low > ohlc[2].low and features.momentum2_zscore < -1.5),
-		Pattern("000, -momentum2", lambda ohlc, features: ohlc[0].close > ohlc[1].close > ohlc[2].close and features.momentum2_zscore < -1),
-		Pattern("111, momentum2", lambda ohlc, features: ohlc[0].close < ohlc[1].close < ohlc[2].close and features.momentum2_zscore > 1),
-		# Pattern("000, -momentum3", lambda ohlc, features: ohlc[0].close > ohlc[1].close > ohlc[2].close and features.momentum3_zscore < -1),
-		# Pattern("111, momentum3", lambda ohlc, features: ohlc[0].close < ohlc[1].close < ohlc[2].close and features.momentum3_zscore > 1),
-		# Pattern("000, -momentum5", lambda ohlc, features: ohlc[0].close > ohlc[1].close > ohlc[2].close and features.momentum5_zscore < -1),
-		# Pattern("111, momentum5", lambda ohlc, features: ohlc[0].close < ohlc[1].close < ohlc[2].close and features.momentum5_zscore > 1),
-		# Pattern("000, -momentum10", lambda ohlc, features: ohlc[0].close > ohlc[1].close > ohlc[2].close and features.momentum10_zscore < -1),
-		# Pattern("111, momentum10", lambda ohlc, features: ohlc[0].close < ohlc[1].close < ohlc[2].close and features.momentum10_zscore > 1),
-		Pattern("000, channel", lambda ohlc, features: ohlc[0].close > ohlc[1].close > ohlc[2].close and ohlc[0].low > ohlc[1].low > ohlc[2].low and ohlc[0].high > ohlc[1].high > ohlc[2].high),
-		Pattern("111, -channel", lambda ohlc, features: ohlc[0].close < ohlc[1].close < ohlc[2].close and ohlc[0].low < ohlc[1].low < ohlc[2].low and ohlc[0].high < ohlc[1].high < ohlc[2].high),
+		Pattern("momentum2", True, lambda ohlc, features: features.momentum2 > 0.01),
+		Pattern("-momentum2", False, lambda ohlc, features: features.momentum2 < - 0.01),
+		Pattern("volume", True, lambda ohlc, features: ohlc[0].volume / (ohlc[1].volume + 1) > 2),
+		Pattern("-volume", False, lambda ohlc, features: ohlc[0].volume / (ohlc[1].volume + 1) < 0.5),
+		# Pattern("momentum2, momentum3", True, lambda ohlc, features: features.momentum2 > 0.005 and features.momentum3 > 0.015),
+		# Pattern("-momentum2, -momentum3", False, lambda ohlc, features: features.momentum2 > - 0.005 and features.momentum3 < -0.015),
+		# Pattern("011", True, lambda ohlc, features: ohlc[0].close > ohlc[1].close > ohlc[2].close < ohlc[3].close and ohlc[0].close > ohlc[3].close),
+		# Pattern("100", False, lambda ohlc, features: ohlc[0].close < ohlc[1].close < ohlc[2].close > ohlc[3].close and ohlc[0].close < ohlc[3].close),
+		# Pattern("000, channel", True, lambda ohlc, features: ohlc[0].close > ohlc[1].close > ohlc[2].close and ohlc[0].low > ohlc[1].low > ohlc[2].low and ohlc[0].high > ohlc[1].high > ohlc[2].high),
+		# Pattern("111, -channel", False, lambda ohlc, features: ohlc[0].close < ohlc[1].close < ohlc[2].close and ohlc[0].low < ohlc[1].low < ohlc[2].low and ohlc[0].high < ohlc[1].high < ohlc[2].high),
 	]
 	series = read_ohlc_series(symbol)
 	records: list[OhlcRecord] = series.values()
-	buffers = ZScoreBuffers()
 	past_offset = pd.DateOffset(years=1)
 	for i, record in enumerate(records):
 		if record.time < start - past_offset:
 			continue
-		momentum2 = get_momentum(2, i, records)
-		momentum3 = get_momentum(3, i, records)
-		momentum5 = get_momentum(5, i, records)
-		momentum10 = get_momentum(10, i, records)
-		buffers.momentum2.add(momentum2)
-		buffers.momentum3.add(momentum3)
-		buffers.momentum5.add(momentum5)
-		buffers.momentum10.add(momentum10)
 		if record.time < start:
 			continue
 		if record.time >= end:
 			break
 		for pattern in patterns:
-			pattern.process(i, records, buffers)
-	print_statistics(patterns)
+			pattern.process(i, records)
+	print_statistics(start, end, patterns)
 	render_returns(patterns)
 
 def render_returns(patterns: list[Pattern]) -> None:
@@ -194,11 +152,13 @@ def render_returns(patterns: list[Pattern]) -> None:
 	plt.show()
 	plt.close()
 
-def print_statistics(patterns: list[Pattern]) -> None:
+def print_statistics(start: pd.Timestamp, end: pd.Timestamp, patterns: list[Pattern]) -> None:
+	years = (end - start).days / 365.25
 	headers = [
 		"Pattern",
 		"Return (Pattern)",
 		"Return (Others)",
+		"Annual Return",
 		"Hit Rate",
 		"Prevalence",
 		"Trades"
@@ -211,12 +171,12 @@ def print_statistics(patterns: list[Pattern]) -> None:
 		else:
 			prevalence_string = f"{Fore.RED}{prevalence:.2%}{Style.RESET_ALL}"
 		if pattern.has_samples():
-			mean_return_pattern, mean_return_others = pattern.get_mean_returns()
-			short = mean_return_pattern < 0
-			hit_rate = pattern.get_hit_rate(short)
+			mean_return_pattern, mean_return_others, total_return = pattern.get_returns()
+			mean_annual_return = total_return / years
+			hit_rate = pattern.get_hit_rate()
 			if hit_rate > 0.6:
 				hit_rate_string = f"{Fore.GREEN}{hit_rate:.1%}{Style.RESET_ALL}"
-			elif hit_rate < 0.48:
+			elif hit_rate < 0.45:
 				hit_rate_string = f"{Fore.RED}{hit_rate:.1%}{Style.RESET_ALL}"
 			else:
 				hit_rate_string = f"{hit_rate:.1%}"
@@ -224,6 +184,7 @@ def print_statistics(patterns: list[Pattern]) -> None:
 				pattern.name,
 				format_percentage(mean_return_pattern),
 				format_percentage(mean_return_others),
+				format_percentage(mean_annual_return),
 				hit_rate_string,
 				prevalence_string,
 				trades
