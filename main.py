@@ -11,7 +11,6 @@ from chart_seasonality import render_seasonality_chart, SeasonalityChartMode
 from generate import generate_all_contracts, generate_contract
 from heatmap import render_heatmap, render_heatmap_all
 from momentum import analyze_momentum
-from pattern import analyze_pattern
 from seasonality import analyze_seasonality
 
 def get_date_argument(date_string: str) -> pd.Timestamp:
@@ -62,10 +61,6 @@ def main() -> None:
 	parser.add_argument("--end", metavar="DATE", type=get_date_argument, help="Read no data after this date")
 
 	group.add_argument("--momentum", metavar="SYMBOLS", nargs="*", help="Analyze momentum correlation of a symbol")
-
-	pattern_help = "Analyze patterns in a symbol\n"
-	pattern_help += "Requires the use of --start and --end"
-	group.add_argument("--pattern", metavar="SYMBOL", help=pattern_help)
 
 	backtest_help = "Perform a backtest using the strategies defined in backtest_test.py\n"
 	backtest_help += "Requires the use of --start and --end"
@@ -139,12 +134,6 @@ def main() -> None:
 	elif args.momentum is not None:
 		symbols = args.momentum
 		analyze_momentum(symbols)
-	elif args.pattern is not None:
-		assert args.start is not None and args.end is not None
-		symbol = args.pattern
-		start: pd.Timestamp = args.start
-		end: pd.Timestamp = args.end
-		analyze_pattern(symbol, start, end)
 	elif args.backtest:
 		assert args.start is not None and args.end is not None
 		start: pd.Timestamp = args.start
