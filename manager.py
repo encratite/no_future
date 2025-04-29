@@ -1,7 +1,7 @@
 from glob import glob
 import os
 import re
-from typing import cast
+from typing import cast, Final
 
 import pandas as pd
 
@@ -12,6 +12,8 @@ from ohlc import OhlcRecord
 from series import TimeSeries
 
 class AssetManager:
+	GLOBEX_PATTERN: Final[re.Pattern[str]] = re.compile("^[A-Z0-9]+")
+
 	_time_series: dict[str, TimeSeries[OhlcRecord]]
 	_currencies: dict[str, TimeSeries[OhlcRecord]]
 	_assets: dict[str, Asset]
@@ -20,7 +22,8 @@ class AssetManager:
 	def __init__(self, symbols: list[str] | None):
 		reference = "ES"
 		if symbols is not None and reference not in symbols:
-			symbols.append(reference)
+			symbols = symbols + [reference]
+		symbols = [self._truncate_symbol(symbol) for symbol in symbols]
 		self._time_series = {}
 		self._currencies = {}
 		self._assets = {}
@@ -67,11 +70,10 @@ class AssetManager:
 	def _load_time_series(self, symbols: list[str] | None) -> None:
 		pattern = os.path.join(Configuration.FEATHER_DIRECTORY, "*.feather")
 		paths = glob(pattern)
-		globex_pattern = re.compile("^[A-Z0-9]+")
 		for path in paths:
 			basename = os.path.basename(path)
 			symbol, _extension = os.path.splitext(basename)
-			globex_match = globex_pattern.match(symbol)
+			globex_match = self.GLOBEX_PATTERN.match(symbol)
 			if globex_match is None:
 				raise Exception(f"Unable to parse symbol: {symbol}")
 			if symbols is not None and globex_match[0] not in symbols:
@@ -110,4 +112,11 @@ class AssetManager:
 		pattern = re.compile(r"^[A-Z0-9]+$")
 		if pattern.match(symbol) is not None:
 			symbol += ".F1"
+		return symbol
+
+	@staticmethod
+	def _truncate_symbol(symbol: str) -> str:
+		match = AssetManager.GLOBEX_PATTERN.match(symbol)
+		if match is not None:
+			symbol = match[0]
 		return symbol

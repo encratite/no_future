@@ -10,3 +10,4 @@ from .moving_average import (
 from .daily_seasonality import DailySeasonalityStrategy
 from .wfo import WfoStrategy
 from .quantile_radius import QuantileRadiusStrategy, QuantileFeatures
+from .daily_momentum import DailyMomentumStrategy

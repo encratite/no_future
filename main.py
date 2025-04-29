@@ -14,7 +14,7 @@ from generate import generate_all_contracts, generate_contract
 from heatmap import render_heatmap, render_heatmap_all
 from momentum import analyze_momentum
 from seasonality import analyze_seasonality
-from test.test_quantile import perform_backtest
+from test.test_daily_momentum import perform_backtest
 from test.test_wfo import perform_wfo_backtest
 
 def get_date_argument(date_string: str) -> pd.Timestamp:
