@@ -3,15 +3,19 @@ from typing import cast
 
 import pandas as pd
 
-from backtest_test import perform_backtest, perform_wfo_backtest
 from chart import render_chart
-from chart_compare import render_comparison_chart
-from chart_ratio import render_ratio_chart
-from chart_seasonality import render_seasonality_chart, SeasonalityChartMode
+from chart import (
+	render_comparison_chart,
+	render_ratio_chart,
+	render_seasonality_chart,
+	SeasonalityChartMode
+)
 from generate import generate_all_contracts, generate_contract
 from heatmap import render_heatmap, render_heatmap_all
 from momentum import analyze_momentum
 from seasonality import analyze_seasonality
+from test.test_quantile import perform_backtest
+from test.test_wfo import perform_wfo_backtest
 
 def get_date_argument(date_string: str) -> pd.Timestamp:
 	pd.to_datetime(date_string, format="%Y-%m-%d", errors="raise")

@@ -7,9 +7,6 @@ from colorama import Fore, Style
 from matplotlib.ticker import FuncFormatter
 
 from asset import Asset
-from backtest_configuration import BacktestConfiguration
-from backtest_interface import BacktestInterface
-from backtest_result import BacktestResult
 from common import (
 	format_percentage,
 	format_money,
@@ -22,6 +19,9 @@ from manager import AssetManager
 from ohlc import OhlcRecord
 from position import Position, PositionSide
 from strategy import Strategy
+from .configuration import BacktestConfiguration
+from .interface import BacktestInterface
+from .result import BacktestResult
 
 class Backtest:
 	_strategies: list[Strategy]

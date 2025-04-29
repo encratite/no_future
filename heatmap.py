@@ -21,13 +21,13 @@ from common import (
 	print_table
 )
 from configuration import Configuration
+from constant import DAYS_PER_YEAR, TRADING_DAYS_PER_YEAR
 from ohlc import OhlcRecord
 from series import TimeSeries
 from strategy import Strategy
 
 VOLATILITY_DAYS: Final[int] = 20
 REGIME_DAYS: Final[int] = 200
-DAYS_PER_YEAR: Final[float] = 365.25
 QUANTILE_RADIUS: Final[float] = 0.25
 
 class HeatmapFeature:
@@ -334,7 +334,7 @@ def format_p_value(statistic: float) -> str:
 
 def get_mean_annual_returns(class_returns: list[float], start: pd.Timestamp, end: pd.Timestamp) -> str:
 	total = prod([x + 1 for x in class_returns])
-	years = (end - start).days / 365.25
+	years = (end - start).days / DAYS_PER_YEAR
 	mean_annual_returns = format_percentage((total - 1) / years)
 	return mean_annual_returns
 
@@ -350,13 +350,11 @@ def get_risk_free_rate(start: pd.Timestamp, end: pd.Timestamp, series: TimeSerie
 	return mean_risk_free_rate
 
 def get_sharpe_ratio(daily_returns: list[float], start: pd.Timestamp, end: pd.Timestamp, series: TimeSeries[OhlcRecord]) -> str:
-	trading_days_per_year: Final[int] = 252
-
 	risk_free_rate = get_risk_free_rate(start, end, series)
 	mean_daily_returns = mean(daily_returns)
 	daily_standard_deviation = stdev(daily_returns)
-	mean_annual_returns = trading_days_per_year * mean_daily_returns
-	standard_deviation_factor = sqrt(trading_days_per_year)
+	mean_annual_returns = TRADING_DAYS_PER_YEAR * mean_daily_returns
+	standard_deviation_factor = sqrt(TRADING_DAYS_PER_YEAR)
 	standard_deviation = standard_deviation_factor * daily_standard_deviation
 	excess_returns = mean_annual_returns - risk_free_rate
 	if standard_deviation == 0:

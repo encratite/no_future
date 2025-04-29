@@ -1,9 +1,10 @@
-from typing import Final
-from statistics import mean, stdev
 from math import sqrt
+from statistics import mean, stdev
+from typing import Final
 
 import pandas as pd
 
+from constant import DAYS_PER_YEAR, TRADING_DAYS_PER_YEAR
 from manager import AssetManager
 
 class BacktestResult:
@@ -30,10 +31,8 @@ class BacktestResult:
 		profitable_trades: int,
 		asset_manager: AssetManager
 	):
-		days_per_year: Final[float] = 365.25
-
 		self.net_profit = final_cash - initial_cash
-		years = (end - start) / pd.Timedelta(days=days_per_year)
+		years = (end - start) / pd.Timedelta(days=DAYS_PER_YEAR)
 		self.annual_average_profit = self.net_profit / years
 		self.starting_capital = initial_cash
 		return_ratio = final_cash / initial_cash
@@ -64,7 +63,7 @@ class BacktestResult:
 
 	@staticmethod
 	def _get_ratios(equity_curve: list[float], risk_free_rate: float) -> tuple[float | None, float | None]:
-		trading_days_per_year: Final[int] = 252
+		trading_days_per_year: Final[int] = TRADING_DAYS_PER_YEAR
 
 		daily_returns = [today / yesterday - 1 for today, yesterday in zip(equity_curve[1:], equity_curve)]
 		if len(daily_returns) < 2:

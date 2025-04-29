@@ -6,39 +6,9 @@ from time import perf_counter
 
 import pandas as pd
 
-from backtest import Backtest, BacktestResult
-from backtest_configuration import BacktestConfiguration
+from backtest.backtest import Backtest, BacktestConfiguration
 from manager import AssetManager
-from strategy import (
-	Strategy,
-	BuyAndHoldStrategy,
-	QuantileRadiusStrategy,
-	QuantileFeatures,
-	WfoStrategy,
-	MovingAverageStrategy,
-	MovingAverageConfiguration,
-	MovingAverageTradingMode,
-	MovingAverageFunction
-)
-
-def perform_backtest(start: pd.Timestamp, end: pd.Timestamp) -> None:
-	cash = 100_000
-	start_time = perf_counter()
-	symbol = "GC"
-	asset_manager = AssetManager([symbol])
-	end_time = perf_counter()
-	delta = end_time - start_time
-	print(f"Loaded assets in {delta:.1f} s")
-	strategy = QuantileRadiusStrategy(symbol, QuantileFeatures.MOMENTUM2, QuantileFeatures.VOLUME, 0.25)
-	strategy.weight = 2
-	configuration = BacktestConfiguration(start, end, cash)
-	backtest = Backtest([strategy], configuration, asset_manager)
-	result = backtest.run()
-	backtest.print_result(result)
-	end_time = perf_counter()
-	delta = end_time - start_time
-	print(f"Performed backtest in {delta:.1f} s")
-	backtest.plot_equity_curve()
+from strategy import *
 
 def perform_wfo_backtest(symbol: str, start: pd.Timestamp, end: pd.Timestamp, wfo_years: int) -> None:
 	initial_cash = 100_000
@@ -157,10 +127,10 @@ def get_best_wfo_parameters(
 		for fast_slow_tuple, trading_mode, function, regime_filter in strategy_parameters:
 			fast_days, slow_days = fast_slow_tuple
 			strategy_configuration = MovingAverageConfiguration(fast_days, slow_days, trading_mode, function, regime_filter)
-			strategy = MovingAverageStrategy(symbol, strategy_configuration)
-			backtest = Backtest([strategy], backtest_configuration, asset_manager)
+			moving_average_strategy = MovingAverageStrategy(symbol, strategy_configuration)
+			backtest = Backtest([moving_average_strategy], backtest_configuration, asset_manager)
 			result = backtest.run()
-			backtest_results.append((strategy, result))
+			backtest_results.append((moving_average_strategy, result))
 		best_strategy, _ = max(backtest_results, key=lambda x: convert_sharpe(x[1].sharpe_ratio))
 		output.append((wfo_date, best_strategy))
 		i += 1
