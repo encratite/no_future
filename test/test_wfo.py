@@ -6,7 +6,11 @@ from time import perf_counter
 
 import pandas as pd
 
-from backtest.backtest import Backtest, BacktestConfiguration
+from backtest.backtest import (
+	Backtest,
+	BacktestConfiguration,
+	BacktestResult
+)
 from manager import AssetManager
 from strategy import *
 

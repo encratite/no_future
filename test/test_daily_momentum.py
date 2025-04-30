@@ -16,16 +16,19 @@ def perform_backtest(start: pd.Timestamp, end: pd.Timestamp) -> None:
 		# "SI",
 		"CL",
 		# "CL.FY",
-		# "NG",
+		"NG",
 		# "NG.FY",
-		"ZS",
+		# "ZS",
 		# "ZC",
 		# "LE",
 		# "HE",
 		# "ZB",
 		# "ZT",
-		# "ZN"
+		# "ZN",
+		# "VX",
 	]
+	if start > pd.Timestamp("2022-01-01"):
+		symbols.append("MBT")
 	long_only_symbols = [
 		"ES",
 		"NQ",
@@ -36,7 +39,15 @@ def perform_backtest(start: pd.Timestamp, end: pd.Timestamp) -> None:
 	end_time = perf_counter()
 	delta = end_time - start_time
 	print(f"Loaded assets in {delta:.1f} s")
-	daily_momentum_strategy = DailyMomentumStrategy(symbols, long_only_symbols, weeks=8, long_count=2, short_count=1)
+	daily_momentum_strategy = DailyMomentumStrategy(
+		symbols=symbols,
+		long_only_symbols=long_only_symbols,
+		weeks=8,
+		long_count=2,
+		short_count=2,
+		long_minimum_sharpe=0.35,
+		short_maximum_sharpe=-0.5
+	)
 	configuration = BacktestConfiguration(start, end, cash)
 	backtest = Backtest([daily_momentum_strategy], configuration, asset_manager)
 	result = backtest.run()

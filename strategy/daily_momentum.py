@@ -36,6 +36,9 @@ class DailyMomentumStrategy(Strategy):
 	_weeks: int
 	_long_count: int
 	_short_count: int
+	_long_minimum_sharpe: float | None
+	_short_maximum_sharpe: float | None
+
 	_buffer: defaultdict[tuple[str, int], deque[float]] | None
 	_last_execution: pd.Timestamp | None
 	_signals: dict[SymbolDay, int] | None
@@ -46,7 +49,9 @@ class DailyMomentumStrategy(Strategy):
 		long_only_symbols: list[str],
 		weeks: int = 8,
 		long_count: int = 1,
-		short_count: int = 1
+		short_count: int = 1,
+		long_minimum_sharpe: float | None = None,
+		short_maximum_sharpe: float | None = None
 	) -> None:
 		assert len(symbols) > 0 and weeks > 0
 		symbol_string = ", ".join(symbols)
@@ -56,6 +61,8 @@ class DailyMomentumStrategy(Strategy):
 		self._weeks = weeks
 		self._long_count = long_count
 		self._short_count = short_count
+		self._long_minimum_sharpe = long_minimum_sharpe
+		self._short_maximum_sharpe = short_maximum_sharpe
 		self.reset()
 
 	def get_signals(self, interface: BacktestInterface) -> dict[str, float]:
@@ -64,7 +71,7 @@ class DailyMomentumStrategy(Strategy):
 		else:
 			self._update_buffer(interface)
 		if self._last_execution is None or self._last_execution.week != interface.time.week:
-			self._select_assets(interface)
+			self._select_by_sharpe(interface)
 		signals: dict[str, float] = {}
 		if self._signals is not None:
 			for key, signal in self._signals.items():
@@ -103,7 +110,7 @@ class DailyMomentumStrategy(Strategy):
 			while len(returns) > self._weeks:
 				returns.pop()
 
-	def _select_assets(self, interface: BacktestInterface) -> None:
+	def _select_by_sharpe(self, interface: BacktestInterface) -> None:
 		ratings: list[tuple[SymbolDay, float]] = []
 		for key, returns in self._buffer.items():
 			if len(returns) >= 2:
@@ -112,8 +119,8 @@ class DailyMomentumStrategy(Strategy):
 				risk_adjusted_return = mean(returns)
 			ratings.append((key, risk_adjusted_return))
 		sorted_ratings = sorted(ratings, key=lambda x: x[1])
-		long_targets = [x for x in sorted_ratings if x[1] > 0]
-		short_targets = [x for x in sorted_ratings if x[1] < 0 and x[0].symbol not in self._long_only_symbols]
+		long_targets = [x for x in sorted_ratings if self._check_sharpe_ratio(x[1], True)]
+		short_targets = [x for x in sorted_ratings if self._check_sharpe_ratio(x[1], False) and x[0].symbol not in self._long_only_symbols]
 		long_assets = long_targets[-self._long_count:]
 		short_assets = short_targets[:self._short_count]
 		self._signals = {}
@@ -123,3 +130,15 @@ class DailyMomentumStrategy(Strategy):
 			self._signals[key] = -1
 		print(f"{interface.time} Selected assets: {self._signals}")
 		self._last_execution = interface.time
+
+	def _check_sharpe_ratio(self, sharpe_ratio: float, long: bool) -> bool:
+		if long:
+			if self._long_minimum_sharpe is None:
+				return sharpe_ratio > 0
+			else:
+				return sharpe_ratio > self._long_minimum_sharpe
+		else:
+			if self._short_maximum_sharpe is None:
+				return sharpe_ratio < 0
+			else:
+				return sharpe_ratio < self._short_maximum_sharpe
