@@ -39,7 +39,10 @@ class BacktestResult:
 		self.total_return = return_ratio - 1
 		self.mean_annual_return = self.total_return / years
 		self.trades = trades
-		self.hit_rate = profitable_trades / trades
+		if trades > 0:
+			self.hit_rate = profitable_trades / trades
+		else:
+			self.hit_rate = 0
 		self.max_drawdown = max_drawdown
 		risk_free_rate = self._get_risk_free_rate(start, end, asset_manager)
 		sharpe_ratio, sortino_ratio = self._get_ratios(equity_curve, risk_free_rate)

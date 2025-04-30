@@ -24,7 +24,7 @@ def perform_wfo_backtest(symbol: str, start: pd.Timestamp, end: pd.Timestamp, wf
 	previous_date: pd.Timestamp | None = None
 	time = start
 	while time < end:
-		if previous_date is None or time.month != previous_date.month:
+		if previous_date is None or (time.month != previous_date.month and time.month in [1, 6]):
 			wfo_dates.append(time)
 		previous_date = time
 		time += pd.Timedelta(days=1)
@@ -47,7 +47,7 @@ def perform_wfo_backtest(symbol: str, start: pd.Timestamp, end: pd.Timestamp, wf
 	print_wfo_strategies(wfo_years, wfo_strategies)
 	print("WFO performance:")
 	backtest.print_result(result)
-	# backtest.plot_equity_curve()
+	backtest.plot_equity_curve()
 
 	time_end = perf_counter()
 	time_delta = time_end - time_start
@@ -114,9 +114,15 @@ def get_best_wfo_parameters(
 	]
 	regime_filters = [
 		False,
-		True
+		# True
 	]
-	strategy_parameters = list(product(fast_slow_values, trading_modes, list(MovingAverageFunction), regime_filters))
+	holding_times = [
+		1,
+		2,
+		3,
+		5,
+	]
+	strategy_parameters = list(product(fast_slow_values, trading_modes, list(MovingAverageFunction), regime_filters, holding_times))
 	output: list[tuple[pd.Timestamp, Strategy]] = []
 	i = 0
 	cpu_count = os.cpu_count()
@@ -128,9 +134,16 @@ def get_best_wfo_parameters(
 		end = wfo_date
 		backtest_configuration = BacktestConfiguration(start, end, initial_cash)
 		backtest_results: list[tuple[Strategy, BacktestResult]] = []
-		for fast_slow_tuple, trading_mode, function, regime_filter in strategy_parameters:
+		for fast_slow_tuple, trading_mode, function, regime_filter, holding_time in strategy_parameters:
 			fast_days, slow_days = fast_slow_tuple
-			strategy_configuration = MovingAverageConfiguration(fast_days, slow_days, trading_mode, function, regime_filter)
+			strategy_configuration = MovingAverageConfiguration(
+				fast_days=fast_days,
+				slow_days=slow_days,
+				trading_mode=trading_mode,
+				function=function,
+				regime_filter=regime_filter,
+				holding_time=holding_time
+			)
 			moving_average_strategy = MovingAverageStrategy(symbol, strategy_configuration)
 			backtest = Backtest([moving_average_strategy], backtest_configuration, asset_manager)
 			result = backtest.run()
