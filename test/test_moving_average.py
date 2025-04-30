@@ -26,8 +26,8 @@ def perform_backtest(start: pd.Timestamp, end: pd.Timestamp) -> None:
 	configuration = BacktestConfiguration(start, end, cash)
 	backtest = Backtest([moving_average_strategy], configuration, asset_manager)
 	result = backtest.run()
-	backtest.print_result(result)
+	result.print()
 	end_time = perf_counter()
 	delta = end_time - start_time
 	print(f"Performed backtest in {delta:.1f} s")
-	# backtest.plot_equity_curve()
+	# result.plot()

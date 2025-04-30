@@ -46,8 +46,8 @@ def perform_wfo_backtest(symbol: str, start: pd.Timestamp, end: pd.Timestamp, wf
 	result = backtest.run()
 	print_wfo_strategies(wfo_years, wfo_strategies)
 	print("WFO performance:")
-	backtest.print_result(result)
-	backtest.plot_equity_curve()
+	result.print()
+	result.plot()
 
 	time_end = perf_counter()
 	time_delta = time_end - time_start
@@ -67,7 +67,7 @@ def perform_buy_and_hold_test(symbol: str, configuration: BacktestConfiguration,
 		results.append((result, side_string))
 	best_result, side_string = max(results, key=lambda x: x[0].sharpe_ratio)
 	print(f"Buy and hold performance ({side_string}):")
-	backtest.print_result(best_result)
+	best_result.print()
 
 def print_wfo_strategies(wfo_years: int, wfo_strategies: list[tuple[pd.Timestamp, Strategy]]) -> None:
 	strategies_dict: defaultdict[str, int] = defaultdict(int)

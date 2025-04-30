@@ -1,18 +1,11 @@
 from collections import defaultdict
 
-import matplotlib.pyplot as plt
 import pandas as pd
-import seaborn as sns
 from colorama import Fore, Style
-from matplotlib.ticker import FuncFormatter
 
 from asset import Asset
 from common import (
-	format_percentage,
-	format_money,
-	format_ratio,
-	print_table,
-	format_coord
+	format_money
 )
 from configuration import Configuration
 from manager import AssetManager
@@ -96,85 +89,13 @@ class Backtest:
 		result = self._get_result()
 		return result
 
-	def plot_equity_curve(self) -> None:
-		id_var = "date"
-		value_var = "value"
-		equity_var = "Equity Curve"
-		drawdown_var = "Drawdown"
-		value_name = "value_name"
-		truncated_time_series = self._time_series[0:len(self._equity_curve)]
-		df = pd.DataFrame({
-			id_var: truncated_time_series,
-			equity_var: self._equity_curve,
-			drawdown_var: self._drawdown
-		})
-		df_melted = df.melt(
-			id_vars=id_var,
-			value_vars=[equity_var, drawdown_var],
-			var_name=value_var,
-			value_name=value_name
-		)
-		fig, ax = plt.subplots(figsize=(12, 8))
-		sns.lineplot(df_melted, x=id_var, y=value_name, hue=value_var)
-		ax.legend().set_title(None) # type: ignore
-		fill_alpha = 0.1
-		ax.fill_between(
-			df[id_var],
-			df[equity_var],
-			0,
-			where=(df[equity_var] >= 0),
-			interpolate=True,
-			color="blue",
-			alpha=fill_alpha
-		)
-		ax.fill_between(
-			df[id_var],
-			0,
-			df[drawdown_var],
-			where=(df[drawdown_var] < 0),
-			interpolate=True,
-			color="red",
-			alpha=fill_alpha
-		)
-		plt.xlim(df[id_var].min(), df[id_var].max())
-		plt.xlabel("Date")
-		plt.ylabel("Capital")
-		plt.title(f"Equity Curve")
-		plt.tight_layout()
-
-		def format_money_plot(x, _pos):
-			if x >= 0:
-				return f"${x:,.2f}"
-			else:
-				return f"-${abs(x):,.2f}"
-
-		formatter = FuncFormatter(format_money_plot)
-		plt.gca().yaxis.set_major_formatter(formatter)
-		ax.format_coord = lambda x, y: format_coord(x, y, ax, format_string=lambda x: format_money(x, False))
-		plt.show()
-		plt.close()
-
-	@staticmethod
-	def print_result(result: BacktestResult) -> None:
-		table = [
-			["Net Profit", format_money(result.net_profit)],
-			["Annual Average Profit", format_money(result.annual_average_profit)],
-			["Starting Capital", format_money(result.starting_capital)],
-			["Total Return", format_percentage(result.total_return)],
-			["Mean Annual Return", format_percentage(result.mean_annual_return)],
-			["Sharpe Ratio", format_ratio(result.sharpe_ratio)],
-			["Sortino Ratio", format_ratio(result.sortino_ratio)],
-			["Max Drawdown", format_percentage(result.max_drawdown)],
-			["Round-Trips", result.trades],
-			["Hit Rate", f"{result.hit_rate:.1%}"]
-		]
-		print_table(table, False)
-
 	def _get_result(self) -> BacktestResult:
 		result = BacktestResult(
 			self._configuration.start,
 			self._configuration.end,
+			self._time_series,
 			self._equity_curve,
+			self._drawdown,
 			self._max_drawdown,
 			self._configuration.initial_cash,
 			self._cash,
