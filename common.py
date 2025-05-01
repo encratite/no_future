@@ -1,6 +1,7 @@
 import os
 from concurrent.futures import ProcessPoolExecutor, as_completed
 from math import log
+from statistics import stdev
 from typing import Any, Callable, Iterable, TypeVar
 
 import matplotlib.dates as mdates
@@ -114,3 +115,10 @@ def try_parse_int(int_string: str) -> int | None:
 		return int(int_string)
 	except ValueError:
 		return None
+
+def get_volatility(records: list[OhlcRecord]) -> float:
+	records = sorted(records, key=lambda x: x.time)
+	closes = [x.close for x in records]
+	returns = [get_log_returns(a, b) for a, b in zip(closes[1:], closes)]
+	volatility = stdev(returns)
+	return volatility

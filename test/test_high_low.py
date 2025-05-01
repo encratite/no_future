@@ -30,7 +30,7 @@ class MultiBacktestResult:
 		self.secondary_result = secondary_result
 
 def perform_backtest(start: pd.Timestamp, end: pd.Timestamp) -> None:
-	symbol = "NG.F2"
+	symbol = "HE"
 	result_count = 30
 	start_time = perf_counter()
 	asset_manager = AssetManager([symbol])
@@ -77,7 +77,7 @@ def get_range(a: int, b: int) -> list[int]:
 
 def evaluate_parameters(symbol: str, start: pd.Timestamp, end: pd.Timestamp, asset_manager: AssetManager, process_id: int) -> list[MultiBacktestResult]:
 	secondary_start = pd.Timestamp("2023-01-01")
-	cash = 100_000
+	cash = 50_000
 	window_sizes = get_range(5, 20)
 	holding_times = get_range(1, 10)
 	modes = [
@@ -86,18 +86,28 @@ def evaluate_parameters(symbol: str, start: pd.Timestamp, end: pd.Timestamp, ass
 		NewHighLowMode.SHORT_ON_HIGH,
 		NewHighLowMode.SHORT_ON_LOW,
 	]
-	parameters = product(window_sizes, holding_times, modes)
+	volatility_window_size = 20
+	volatility_filters = [
+		(None, None),
+		# (volatility_window_size, 0.008),
+		# (volatility_window_size, 0.010),
+		# (volatility_window_size, 0.012)
+	]
+	parameters = product(window_sizes, holding_times, modes, volatility_filters)
 	results: list[MultiBacktestResult] = []
 	process_count = cpu_count()
 	for i, parameter_tuple in enumerate(parameters):
 		if i % process_count != process_id:
 			continue
-		window_size, holding_time, mode = parameter_tuple
+		window_size, holding_time, mode, volatility_configuration = parameter_tuple
+		volatility_window_size, volatility_filter = volatility_configuration
 		moving_average_strategy = NewHighLowStrategy(
 			symbol=symbol,
 			window_size=window_size,
 			holding_time=holding_time,
-			mode=mode
+			mode=mode,
+			volatility_window_size=volatility_window_size,
+			volatility_filter=volatility_filter
 		)
 
 		configuration = BacktestConfiguration(start, end, cash)

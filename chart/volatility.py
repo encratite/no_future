@@ -5,7 +5,11 @@ import matplotlib.pyplot as plt
 import pandas as pd
 import seaborn as sns
 
-from common import read_ohlc_series, get_log_returns
+from common import (
+	read_ohlc_series,
+	get_log_returns,
+	get_volatility
+)
 
 TIME: Final[str] = "time"
 VOLATILITY: Final[str] = "volatility"
@@ -23,10 +27,7 @@ def render_volatility_chart(symbol: str, window_size: int, start: pd.Timestamp, 
 			break
 		offset = i + 1
 		window = records[offset - window_size - 1: offset]
-		closes = [x.close for x in window]
-		returns = [get_log_returns(a, b) for a, b in zip(closes[1:], closes)]
-		assert len(returns) == window_size
-		volatility = stdev(returns)
+		volatility = get_volatility(window)
 		time_series.append(record.time)
 		volatility_values.append(volatility)
 	df = pd.DataFrame({
