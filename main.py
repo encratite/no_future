@@ -3,13 +3,7 @@ from typing import cast
 
 import pandas as pd
 
-from chart import render_chart
-from chart import (
-	render_comparison_chart,
-	render_ratio_chart,
-	render_seasonality_chart,
-	SeasonalityChartMode
-)
+from chart import *
 from generate import generate_all_contracts, generate_contract
 from heatmap import render_heatmap, render_heatmap_all
 from momentum import analyze_momentum
@@ -39,6 +33,10 @@ def main() -> None:
 	chart_ratio_help = "Render a ratio chart using the specified symbols\n"
 	chart_ratio_help += "Use --start and --end to limit the chart to a certain time range"
 	group.add_argument("--chart-ratio", metavar=("BASE", "DIVISOR", "DIVIDEND"), nargs=3, help=chart_ratio_help)
+
+	chart_volatility_help = "Render volatility chart for the specified symbol using a window size of n days\n"
+	chart_volatility_help += "Requires the use of --start and --end"
+	group.add_argument("--volatility", metavar=("SYMBOL", "WINDOW"), nargs=2, help=chart_volatility_help)
 
 	heatmap_help = "Render a heatmap of one-day returns of the specified symbol based on the quantiles of the two specified features\n"
 	heatmap_help += "Supported features: momentum2, momentum3, momentum10, regime, gain2pain, volume, interest, volatility"
@@ -101,6 +99,13 @@ def main() -> None:
 		start: pd.Timestamp | None = args.start
 		end: pd.Timestamp | None = args.end
 		render_ratio_chart(base_symbol, dividend_symbol, divisor_symbol, start, end)
+	elif args.volatility is not None:
+		assert args.start is not None and args.end is not None
+		symbol, window_size_string = args.volatility
+		window_size = int(window_size_string)
+		start: pd.Timestamp | None = args.start
+		end: pd.Timestamp | None = args.end
+		render_volatility_chart(symbol, window_size, start, end)
 	elif args.heatmap is not None:
 		assert args.start is not None and args.end is not None
 		symbol, x_axis, y_axis, quantiles_string = args.heatmap
