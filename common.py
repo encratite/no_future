@@ -108,3 +108,9 @@ def format_coord(x: float, y: float, ax: Any, format_string: Callable[[float], s
 		else:
 			y_string = f"{y:.2f}"
 		return f"[{date}] {y_string}"
+
+def try_parse_int(int_string: str) -> int | None:
+	try:
+		return int(int_string)
+	except ValueError:
+		return None
