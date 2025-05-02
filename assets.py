@@ -210,6 +210,42 @@ def get_assets() -> tuple[list[Asset], pd.Timestamp]:
 			2
 		),
 		Asset(
+			"6C",
+			"Canadian Dollar",
+			"USD",
+			0.00005,
+			5,
+			1627.51,
+			False,
+			0.50,
+			0.26,
+			3
+		),
+		Asset(
+			"6A",
+			"Australian Dollar",
+			"USD",
+			0.00005,
+			5,
+			2614.50,
+			False,
+			0.50,
+			0.26,
+			3
+		),
+		Asset(
+			"DX",
+			"Dollar Index",
+			"USD",
+			0.005,
+			5,
+			3366.75,
+			False,
+			0.50,
+			0.26,
+			1
+		),
+		Asset(
 			"GC",
 			"Gold",
 			"USD",

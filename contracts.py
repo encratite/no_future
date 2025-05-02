@@ -8,6 +8,12 @@ def get_contract_filter(barchart_symbol: str) -> ContractFilter | None:
 	else:
 		return None
 
+def get_barchart_symbol(exchange_symbol: str) -> str:
+	for barchart_symbol, contract_filter in CONTRACT_CONFIGURATION.items():
+		if contract_filter.exchange_symbol == exchange_symbol:
+			return barchart_symbol
+	raise Exception(f"Unknown exchange symbol: {exchange_symbol}")
+
 CONTRACT_CONFIGURATION: Final[dict[str, ContractFilter]] = {
 	"A6": ContractFilter("6A", legacy_cutoff="A6H01", first_filter_contract="A6J17", include_months=["H", "M", "U", "Z"], cutoff_date="2001-03-27"),
 	"B6": ContractFilter("6B", legacy_cutoff="B6M03", first_filter_contract="B6J17", include_months=["H", "M", "U", "Z"]),

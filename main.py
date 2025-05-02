@@ -6,9 +6,10 @@ import pandas as pd
 from chart import *
 from generate import generate_all_contracts, generate_contract
 from heatmap import render_heatmap, render_heatmap_all
+from intraday import generate_intraday_contract
 from momentum import analyze_momentum
 from seasonality import analyze_seasonality
-from test.test_high_low import perform_backtest
+from test.test_gradient import perform_backtest
 from test.test_wfo import perform_wfo_backtest
 
 def get_date_argument(date_string: str) -> pd.Timestamp:
@@ -20,6 +21,7 @@ def main() -> None:
 	group = parser.add_mutually_exclusive_group()
 	group.add_argument("--generate-all", action="store_true", help="Generate continuous contracts for all symbols")
 	group.add_argument("--generate", metavar="SYMBOL", help="Generate a continuous contract for the specified symbol")
+	group.add_argument("--generate-intraday", metavar="SYMBOL", help="Generate the intraday continuous contract for the specified symbol")
 
 	chart_help = "Render a chart for the specified symbols\n"
 	chart_help += "By default this will display all available data\n"
@@ -79,6 +81,9 @@ def main() -> None:
 	elif args.generate is not None:
 		symbol: str = args.generate
 		generate_contract(symbol)
+	elif args.generate_intraday is not None:
+		symbol: str = args.generate_intraday
+		generate_intraday_contract(symbol)
 	elif args.chart is not None:
 		symbols: list[str] = args.chart
 		start: pd.Timestamp | None = args.start

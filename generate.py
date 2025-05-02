@@ -9,6 +9,7 @@ import pandas as pd
 
 from common import execute_pool
 from configuration import Configuration
+from constant import OHLC_PRECISION
 from contracts import get_contract_filter
 from filter import ContractFilter
 from globex import GlobexCode
@@ -153,14 +154,13 @@ def write_contract_files(symbol: str, record_offsets: dict[str, list[tuple[OhlcR
 		df_dict = defaultdict(list)
 		# This is extremely questionable and previously caused horrible bugs
 		# Who the hell would use floats to represent monetary values anyway?
-		precision = 6
 		for record, offset in records:
 			df_dict["time"].append(record.time.date())
 			df_dict["symbol"].append(repr(record.globex_code))
-			df_dict["open"].append(round(record.open + offset, precision))
-			df_dict["high"].append(round(record.high + offset, precision))
-			df_dict["low"].append(round(record.low + offset, precision))
-			df_dict["close"].append(round(record.close + offset, precision))
+			df_dict["open"].append(round(record.open + offset, OHLC_PRECISION))
+			df_dict["high"].append(round(record.high + offset, OHLC_PRECISION))
+			df_dict["low"].append(round(record.low + offset, OHLC_PRECISION))
+			df_dict["close"].append(round(record.close + offset, OHLC_PRECISION))
 			df_dict["unadjusted_close"].append(record.close)
 			df_dict["volume"].append(record.volume)
 			df_dict["open_interest"].append(record.open_interest)

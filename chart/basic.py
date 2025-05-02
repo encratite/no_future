@@ -38,5 +38,5 @@ def render_chart(symbols: list[str], start: pd.Timestamp | None, end: pd.Timesta
 	plt.ylabel("Price")
 	plt.legend()
 	plt.tight_layout()
-	plt.show()
+	plt.show(block=True)
 	plt.close()
