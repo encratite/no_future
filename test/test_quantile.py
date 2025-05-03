@@ -15,7 +15,7 @@ def perform_backtest(start: pd.Timestamp, end: pd.Timestamp) -> None:
 	delta = end_time - start_time
 	print(f"Loaded assets in {delta:.1f} s")
 	quantile_radius_strategy = QuantileRadiusStrategy(symbol, QuantileFeatures.MOMENTUM2, QuantileFeatures.VOLUME, 0.25)
-	quantile_radius_strategy.weight = 2
+	quantile_radius_strategy.weight = 1
 	configuration = BacktestConfiguration(start, end, cash)
 	backtest = Backtest([quantile_radius_strategy], configuration, asset_manager)
 	result = backtest.run()

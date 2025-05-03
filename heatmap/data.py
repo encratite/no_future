@@ -1,4 +1,9 @@
+import warnings
 from typing import Any
+
+import numpy as np
+import numpy.typing as npt
+from sklearn.preprocessing import quantile_transform
 
 from .constant import VOLATILITY_DAYS
 
@@ -50,3 +55,9 @@ class HeatmapData:
 			quantile_values = get_quantile_transform(feature.values)
 			output[feature.id_] = (feature.description, quantile_values)
 		return output
+
+def get_quantile_transform(values: list[float]) -> npt.NDArray:
+	warnings.filterwarnings("ignore", category=UserWarning, module="sklearn.preprocessing")
+	array = np.array(values).reshape(-1, 1)
+	output = quantile_transform(array)
+	return output

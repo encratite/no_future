@@ -12,7 +12,7 @@ from strategy import *
 from .common import MultiBacktestResult, run_backtest_pool, review_backtests
 
 def perform_backtest(start: pd.Timestamp, end: pd.Timestamp) -> None:
-	symbol = "VX"
+	symbol = "NG"
 	results = run_backtest_pool(symbol, start, end, evaluate_parameters)
 	review_backtests(results)
 

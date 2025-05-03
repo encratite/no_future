@@ -12,6 +12,8 @@ def get_barchart_symbol(exchange_symbol: str) -> str:
 	for barchart_symbol, contract_filter in CONTRACT_CONFIGURATION.items():
 		if contract_filter.exchange_symbol == exchange_symbol:
 			return barchart_symbol
+		if barchart_symbol == exchange_symbol and contract_filter.exchange_symbol is None:
+			return exchange_symbol
 	raise Exception(f"Unknown exchange symbol: {exchange_symbol}")
 
 CONTRACT_CONFIGURATION: Final[dict[str, ContractFilter]] = {

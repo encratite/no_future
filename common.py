@@ -65,12 +65,16 @@ def print_table(table: list[list[Any]], headers: bool = True, always_right: bool
 	print(table_string)
 	print("")
 
-def read_ohlc_series(symbol: str) -> TimeSeries[OhlcRecord]:
-	if "." not in symbol:
+def read_ohlc_series(symbol: str, intraday: bool = False) -> TimeSeries[OhlcRecord]:
+	if "." not in symbol and not intraday:
 		file_name = f"{symbol}.F1"
 	else:
 		file_name = symbol
-	path = os.path.join(Configuration.FEATHER_DIRECTORY, f"{file_name}.feather")
+	if intraday:
+		directory = Configuration.FEATHER_INTRADAY_DIRECTORY
+	else:
+		directory = Configuration.FEATHER_DIRECTORY
+	path = os.path.join(directory, f"{file_name}.feather")
 	ohlc_series = TimeSeries.read_ohlc_feather(path)
 	return ohlc_series
 

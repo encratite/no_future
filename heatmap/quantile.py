@@ -1,14 +1,11 @@
-import warnings
 from statistics import mean
 
 import matplotlib.pyplot as plt
 import matplotlib.ticker as ticker
 import numpy as np
-import numpy.typing as npt
 import pandas as pd
 import scipy
 import seaborn as sns
-from sklearn.preprocessing import quantile_transform
 
 from constant import DAYS_PER_YEAR
 from ohlc import OhlcRecord
@@ -81,9 +78,3 @@ def get_quantile_limits(i: int, quantiles: int) -> tuple[float, float]:
 	quantile_min = i / float(quantiles)
 	quantile_max = (i + 1) / float(quantiles)
 	return quantile_min, quantile_max
-
-def get_quantile_transform(values: list[float]) -> npt.NDArray:
-	warnings.filterwarnings("ignore", category=UserWarning, module="sklearn.preprocessing")
-	array = np.array(values).reshape(-1, 1)
-	output = quantile_transform(array)
-	return output

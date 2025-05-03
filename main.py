@@ -1,16 +1,21 @@
 from argparse import ArgumentParser
 from typing import cast
+import datetime as dt
 
 import pandas as pd
 
 from chart import *
-from generate import generate_all_contracts, generate_contract
+from generate import (
+	generate_all_contracts,
+	generate_contract,
+	generate_intraday_contract
+)
 from heatmap import render_heatmap, render_heatmap_all
-from intraday import generate_intraday_contract
 from momentum import analyze_momentum
 from seasonality import analyze_seasonality
-from test.test_gradient import perform_backtest
+from test.test_quantile import perform_backtest
 from test.test_wfo import perform_wfo_backtest
+from intraday import analyze_session_returns
 
 def get_date_argument(date_string: str) -> pd.Timestamp:
 	pd.to_datetime(date_string, format="%Y-%m-%d", errors="raise")
@@ -21,7 +26,10 @@ def main() -> None:
 	group = parser.add_mutually_exclusive_group()
 	group.add_argument("--generate-all", action="store_true", help="Generate continuous contracts for all symbols")
 	group.add_argument("--generate", metavar="SYMBOL", help="Generate a continuous contract for the specified symbol")
-	group.add_argument("--generate-intraday", metavar="SYMBOL", help="Generate the intraday continuous contract for the specified symbol")
+
+	generate_intraday_help = "Generate an intraday continuous contract for the specified symbol\n"
+	generate_intraday_help += "The suffix specifies the time frame to generate the Feather file from (H1, M30, M15, etc.)"
+	group.add_argument("--generate-intraday", metavar=("SYMBOL", "SUFFIX"), nargs=2, help=generate_intraday_help)
 
 	chart_help = "Render a chart for the specified symbols\n"
 	chart_help += "By default this will display all available data\n"
@@ -75,6 +83,10 @@ def main() -> None:
 	backtest_wfo_help += "Requires the use of --start and --end"
 	group.add_argument("--backtest-wfo", metavar=("SYMBOL", "WFO_YEARS"), nargs=2, help=backtest_wfo_help)
 
+	session_returns_help = "Analyze intraday returns during a particular session\n"
+	session_returns_help += "Requires the use of --start and --end"
+	group.add_argument("--session-returns", metavar=("SYMBOL", "START", "END"), nargs=3, help=session_returns_help)
+
 	args = parser.parse_args()
 	if args.generate_all:
 		generate_all_contracts()
@@ -82,8 +94,8 @@ def main() -> None:
 		symbol: str = args.generate
 		generate_contract(symbol)
 	elif args.generate_intraday is not None:
-		symbol: str = args.generate_intraday
-		generate_intraday_contract(symbol)
+		symbol, suffix = args.generate_intraday
+		generate_intraday_contract(symbol, suffix)
 	elif args.chart is not None:
 		symbols: list[str] = args.chart
 		start: pd.Timestamp | None = args.start
@@ -160,8 +172,19 @@ def main() -> None:
 		start: pd.Timestamp = args.start
 		end: pd.Timestamp = args.end
 		perform_wfo_backtest(symbol, start, end, wfo_years)
+	elif args.session_returns is not None:
+		assert args.start is not None and args.end is not None
+		symbol, session_start_string, session_end_string = args.session_returns
+		session_start = get_time(session_start_string)
+		session_end = get_time(session_end_string)
+		start: pd.Timestamp = args.start
+		end: pd.Timestamp = args.end
+		analyze_session_returns(symbol, session_start, session_end, start, end)
 	else:
 		parser.print_help()
+
+def get_time(time_string: str) -> dt.time:
+	return dt.datetime.strptime(time_string, "%H:%M").time()
 
 if __name__ == "__main__":
 	main()

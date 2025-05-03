@@ -59,7 +59,7 @@ def review_backtests(results: list[MultiBacktestResult]) -> None:
 		if id_string == "":
 			break
 		result_id = try_parse_int(id_string)
-		if result_id < 0 or result_id >= len(results):
+		if result_id < 1 or result_id > len(results):
 			print("Invalid ID")
 			continue
 		result = results[result_id - 1]
