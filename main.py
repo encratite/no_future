@@ -35,6 +35,7 @@ def main() -> None:
 	chart_help += "By default this will display all available data\n"
 	chart_help += "Use --start and --end to limit the chart to a certain time range"
 	group.add_argument("--chart", metavar="SYMBOLS", nargs="*", help=chart_help)
+	parser.add_argument("--intraday", action="store_true", help="Enables the intraday mode of --chart")
 
 	compare_help = "Compare the specified symbols, with all initial prices normalized to 1.0\n"
 	compare_help += "Use --start and --end to limit the chart to a certain time range"
@@ -100,7 +101,8 @@ def main() -> None:
 		symbols: list[str] = args.chart
 		start: pd.Timestamp | None = args.start
 		end: pd.Timestamp | None = args.end
-		render_chart(symbols, start, end)
+		intraday = args.intraday
+		render_chart(symbols, start, end, intraday)
 	elif args.compare is not None:
 		assert args.start is not None and args.end is not None
 		symbols: list[str] = args.compare

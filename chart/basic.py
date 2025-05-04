@@ -8,14 +8,23 @@ from matplotlib.widgets import Cursor
 from common import format_coord
 from configuration import Configuration
 
-def render_chart(symbols: list[str], start: pd.Timestamp | None, end: pd.Timestamp | None):
+def render_chart(
+	symbols: list[str],
+	start: pd.Timestamp | None,
+	end: pd.Timestamp | None,
+	intraday: bool
+) -> None:
 	fig, ax = plt.subplots(figsize=(12, 8))
 	xlim_min_values = []
 	xlim_max_values = []
 	for symbol in symbols:
-		if ".F" not in symbol:
-			symbol += ".F1"
-		path = os.path.join(Configuration.FEATHER_DIRECTORY, f"{symbol}.feather")
+		if intraday:
+			directory = Configuration.FEATHER_INTRADAY_DIRECTORY
+		else:
+			if ".F" not in symbol:
+				symbol += ".F1"
+			directory = Configuration.FEATHER_DIRECTORY
+		path = os.path.join(directory, f"{symbol}.feather")
 		df = pd.read_feather(path, columns=["time", "close"])
 		df["time"] = pd.to_datetime(df["time"])
 		# Apply filters in one go for performance reasons

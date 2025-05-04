@@ -7,7 +7,8 @@ import seaborn as sns
 
 from common import (
 	read_ohlc_series,
-	get_rate_of_change
+	get_rate_of_change,
+	format_percentage
 )
 
 ID_VAR: Final[str] = "time"
@@ -15,6 +16,8 @@ SESSION: Final[str] = "Session"
 OVERNIGHT: Final[str] = "Overnight"
 VAR_NAME: Final[str] = "value"
 VALUE_NAME: Final[str] = "value_name"
+
+DEBUG_OUTPUT: Final[bool] = False
 
 def analyze_session_returns(symbol: str, session_start: dt.time, session_end: dt.time, start: pd.Timestamp, end: pd.Timestamp) -> None:
 	assert session_start < session_end
@@ -30,11 +33,25 @@ def analyze_session_returns(symbol: str, session_start: dt.time, session_end: dt
 		if record.time >= end:
 			break
 		previous_record = records[i - 1]
+		assert previous_record.time < record.time
 		record_time = record.time.time()
+		looking_for_close = len(session_closes) < len(session_opens)
+		valid_close = len(session_opens) - 1 == len(session_closes)
 		if record_time == session_start:
+			assert len(session_opens) == len(session_closes)
 			session_opens.append((record.time.normalize(), previous_record.close))
-		elif record_time == session_end and len(session_closes) < len(session_opens):
+			if DEBUG_OUTPUT:
+				print(record.time, previous_record.close, "New session")
+		elif record_time == session_end and looking_for_close:
+			assert valid_close
 			session_closes.append(previous_record.close)
+			if DEBUG_OUTPUT:
+				print(record.time, previous_record.close, f"End of session")
+		elif previous_record.time.normalize() != record.time.normalize() and looking_for_close:
+			assert valid_close
+			session_closes.append(previous_record.close)
+			if DEBUG_OUTPUT:
+				print(previous_record.time, previous_record.close, f"End of session (weekend)")
 	session_times: list[pd.Timestamp] = []
 	session_returns: list[float] = []
 	overnight_returns: list[float] = []
@@ -42,6 +59,8 @@ def analyze_session_returns(symbol: str, session_start: dt.time, session_end: dt
 		session_time, session_open = open_tuple1
 		_, next_session_open = open_tuple2
 		session_return = get_rate_of_change(session_close, session_open)
+		if DEBUG_OUTPUT:
+			print(f"{session_time} {format_percentage(session_return)} ({session_open} -> {session_close})")
 		overnight_return = get_rate_of_change(next_session_open, session_close)
 		session_times.append(session_time)
 		session_returns.append(session_return)
