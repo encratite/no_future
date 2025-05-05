@@ -16,6 +16,7 @@ from seasonality import analyze_seasonality
 from test.test_quantile import perform_backtest
 from test.test_wfo import perform_wfo_backtest
 from intraday import analyze_session_returns
+from z_score import analyze_z_score_pattern
 
 def get_date_argument(date_string: str) -> pd.Timestamp:
 	pd.to_datetime(date_string, format="%Y-%m-%d", errors="raise")
@@ -87,6 +88,12 @@ def main() -> None:
 	session_returns_help = "Analyze intraday returns during a particular session\n"
 	session_returns_help += "Requires the use of --start and --end"
 	group.add_argument("--session-returns", metavar=("SYMBOL", "START", "END"), nargs=3, help=session_returns_help)
+
+	z_score_help = "Analyze the distribution momentum Z-scores of two assets\n"
+	z_score_help += "Requires the use of --start and --end\n"
+	z_score_help += "Can also specify --anchor to use a custom anchor time to use as a reference for calculating Z-scores"
+	group.add_argument("--z-score", metavar=("SYMBOL1", "SYMBOL2"), nargs=2, help=z_score_help)
+	parser.add_argument("--anchor", metavar="DATE", type=get_date_argument, help="Anchor time for calculating Z-scores with --z-score")
 
 	args = parser.parse_args()
 	if args.generate_all:
@@ -182,6 +189,13 @@ def main() -> None:
 		start: pd.Timestamp = args.start
 		end: pd.Timestamp = args.end
 		analyze_session_returns(symbol, session_start, session_end, start, end)
+	elif args.z_score:
+		assert args.start is not None and args.end is not None
+		symbol1, symbol2 = args.z_score
+		start: pd.Timestamp = args.start
+		end: pd.Timestamp = args.end
+		anchor: pd.Timestamp | None = args.anchor
+		analyze_z_score_pattern(symbol1, symbol2, start, end, anchor)
 	else:
 		parser.print_help()
 
