@@ -1,14 +1,21 @@
 from statistics import mean, stdev
+from multiprocessing import Pool
+from time import perf_counter
+from typing import Final
 
-import numpy as np
-import pandas as pd
 import matplotlib.pyplot as plt
 import matplotlib.ticker as ticker
+import numpy as np
+import pandas as pd
 import seaborn as sns
 
 from common import read_ohlc_series, get_log_returns
 from ohlc import OhlcRecord
 from series import TimeSeries
+
+UNADJUSTED_CLOSE_MINIMUM: Final[float] = 0.1
+# FREQUENCY_MINIMUM: Final[float] = 0.005
+FREQUENCY_MINIMUM: Final[float] = 0
 
 def analyze_z_score_pattern(
 	symbol1: str,
@@ -16,15 +23,22 @@ def analyze_z_score_pattern(
 	start: pd.Timestamp,
 	end: pd.Timestamp
 ) -> None:
+	perf_start = perf_counter()
 	series1 = read_ohlc_series(symbol1)
 	series2 = read_ohlc_series(symbol2)
 	time_series1 = get_filtered_time_series(series1, start, end)
 	time_series2 = get_filtered_time_series(series2, start, end)
 	shared_time_series = time_series1 & time_series2
-	z_scores1, next_day_returns = get_momentum2_z_scores(series1, shared_time_series)
-	z_scores2, _ = get_momentum2_z_scores(series2, shared_time_series)
+	arguments = [
+		(series1, shared_time_series),
+		(series2, shared_time_series)
+	]
+	with Pool(2) as pool:
+		output = list(pool.starmap(get_momentum2_z_scores, arguments))
+	z_scores1, next_day_returns = output[0]
+	z_scores2, _ = output[1]
 	assert len(z_scores1) == len(next_day_returns)
-	assert len(z_scores1) == len(z_scores2)
+	assert len(z_scores1) == len(z_scores2), f"{len(z_scores1)} != {len(z_scores2)}"
 	boundaries = [
 		(None, -1.25),
 		(-1.25, -0.75),
@@ -44,16 +58,17 @@ def analyze_z_score_pattern(
 	for i in range(n):
 		for j in range(n):
 			returns = matrix[i][j]
-			if len(returns) > 0:
+			frequency = len(returns) / len(next_day_returns)
+			if len(returns) > 0 and frequency > FREQUENCY_MINIMUM:
 				mean_returns = mean(returns)
+				annotation = f"{mean_returns:.2%}\n({frequency:.2%})"
 			else:
 				mean_returns = 0
-			mean_returns_matrix[i, j] = mean_returns
-			if len(returns) > 0:
-				annotation = f"{mean_returns:.2%}\n({len(returns) / len(next_day_returns):.2%})"
-			else:
 				annotation = "-"
+			mean_returns_matrix[i, j] = mean_returns
 			annotations[i, j] = annotation
+	duration = perf_counter() - perf_start
+	print(f"Calculated Z-score matrix in {duration:.2f} s")
 	plt.figure(figsize=(12, 8))
 	tick_labels = []
 	for lower_boundary, upper_boundary in boundaries:
@@ -79,7 +94,7 @@ def get_filtered_time_series(
 	start: pd.Timestamp,
 	end: pd.Timestamp
 ) -> set[pd.Timestamp]:
-	time_series = [x.time for x in series.values() if x.time >= start and x.time < end and x.unadjusted_close > 0.1]
+	time_series = [x.time for x in series.values() if x.time >= start and x.time < end and (x.globex_code.root == "J6" or x.unadjusted_close > UNADJUSTED_CLOSE_MINIMUM)]
 	return set(time_series)
 
 def get_momentum2_z_scores(
