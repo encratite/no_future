@@ -91,9 +91,7 @@ def main() -> None:
 
 	z_score_help = "Analyze the distribution momentum Z-scores of two assets\n"
 	z_score_help += "Requires the use of --start and --end\n"
-	z_score_help += "Can also specify --anchor to use a custom anchor time to use as a reference for calculating Z-scores"
 	group.add_argument("--z-score", metavar=("SYMBOL1", "SYMBOL2"), nargs=2, help=z_score_help)
-	parser.add_argument("--anchor", metavar="DATE", type=get_date_argument, help="Anchor time for calculating Z-scores with --z-score")
 
 	args = parser.parse_args()
 	if args.generate_all:
@@ -194,8 +192,7 @@ def main() -> None:
 		symbol1, symbol2 = args.z_score
 		start: pd.Timestamp = args.start
 		end: pd.Timestamp = args.end
-		anchor: pd.Timestamp | None = args.anchor
-		analyze_z_score_pattern(symbol1, symbol2, start, end, anchor)
+		analyze_z_score_pattern(symbol1, symbol2, start, end)
 	else:
 		parser.print_help()
 

@@ -14,25 +14,24 @@ def analyze_z_score_pattern(
 	symbol1: str,
 	symbol2: str,
 	start: pd.Timestamp,
-	end: pd.Timestamp,
-	anchor: pd.Timestamp | None
+	end: pd.Timestamp
 ) -> None:
 	series1 = read_ohlc_series(symbol1)
 	series2 = read_ohlc_series(symbol2)
-	time_series1 = set(series1)
-	time_series2 = set(series2)
+	time_series1 = get_filtered_time_series(series1, start, end)
+	time_series2 = get_filtered_time_series(series2, start, end)
 	shared_time_series = time_series1 & time_series2
-	z_scores1, next_day_returns = get_momentum2_z_scores(series1, start, end, anchor, shared_time_series)
-	z_scores2, _ = get_momentum2_z_scores(series2, start, end, anchor, shared_time_series)
+	z_scores1, next_day_returns = get_momentum2_z_scores(series1, shared_time_series)
+	z_scores2, _ = get_momentum2_z_scores(series2, shared_time_series)
 	assert len(z_scores1) == len(next_day_returns)
 	assert len(z_scores1) == len(z_scores2)
 	boundaries = [
-		(None, -1.5),
-		(-1.5, -1.0),
-		(-1.0, 0.0),
-		(0.0, 1.00),
-		(1.0, 1.5),
-		(1.5, None)
+		(None, -1.25),
+		(-1.25, -0.75),
+		(-0.75, 0.0),
+		(0.0, 0.75),
+		(0.75, 1.25),
+		(1.25, None)
 	]
 	n = len(boundaries)
 	matrix = [[[] for _ in range(n)] for _ in range(n)]
@@ -75,28 +74,37 @@ def analyze_z_score_pattern(
 	plt.show()
 	plt.close()
 
-def get_momentum2_z_scores(
+def get_filtered_time_series(
 	series: TimeSeries[OhlcRecord],
 	start: pd.Timestamp,
-	end: pd.Timestamp,
-	anchor: pd.Timestamp | None,
+	end: pd.Timestamp
+) -> set[pd.Timestamp]:
+	time_series = [x.time for x in series.values() if x.time >= start and x.time < end and x.unadjusted_close > 0.1]
+	return set(time_series)
+
+def get_momentum2_z_scores(
+	series: TimeSeries[OhlcRecord],
 	shared_time_series: set[pd.Timestamp]
 ) -> tuple[list[float], list[float]]:
 	records = series.values()
-	records = [x for x in records if (anchor is None or x.time >= anchor) and x.time < end]
-	returns = [get_log_returns(a.close, b.close) for a, b in zip(records[1:], records)]
+	returns = [get_log_returns(a.unadjusted_close, b.unadjusted_close) for a, b in zip(records[1:], records)]
 	z_scores = []
 	next_day_returns = []
-	for i, record in enumerate(records[1:]):
-		if record.time < start or record.time not in shared_time_series:
+	past_returns_mean: float | None = None
+	past_returns_sigma: float | None = None
+	last_update: pd.Timestamp | None = None
+	for i, record in enumerate(records[1:-1]):
+		if record.time not in shared_time_series:
 			continue
-		if record.time >= end:
-			break
 		today = returns[i]
-		past_returns = returns[:i]
-		z_score = (today - mean(past_returns)) / stdev(past_returns)
+		tomorrow = returns[i + 1]
+		if last_update is None or record.time.month != last_update.month:
+			past_returns = returns[:i]
+			past_returns_mean = mean(past_returns)
+			past_returns_sigma = stdev(past_returns)
+		z_score = (today - past_returns_mean) / past_returns_sigma
 		z_scores.append(z_score)
-		next_day_returns.append(today)
+		next_day_returns.append(tomorrow)
 	return z_scores, next_day_returns
 
 def get_cell(z_score: float, boundaries: list[tuple[float | None, float | None]]) -> int:
