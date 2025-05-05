@@ -102,7 +102,7 @@ class BacktestResult:
 		)
 		fig, ax = plt.subplots(figsize=(12, 8))
 		sns.lineplot(df_melted, x=id_var, y=value_name, hue=value_var)
-		ax.legend().set_title(None)  # type: ignore
+		ax.legend().set_title(None) # type: ignore
 		fill_alpha = 0.1
 		ax.fill_between(
 			df[id_var],

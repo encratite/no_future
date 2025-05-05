@@ -91,7 +91,9 @@ def main() -> None:
 
 	z_score_help = "Analyze the distribution momentum Z-scores of two assets\n"
 	z_score_help += "Requires the use of --start and --end\n"
+	z_score_help += "Use --detailed to increase the accuracy of the heatmap for assets that require it\n"
 	group.add_argument("--z-score", metavar=("SYMBOL1", "SYMBOL2"), nargs=2, help=z_score_help)
+	parser.add_argument("--detailed", action="store_true", help="Enables the detailed heatmap mode of --z-score")
 
 	args = parser.parse_args()
 	if args.generate_all:
@@ -192,7 +194,8 @@ def main() -> None:
 		symbol1, symbol2 = args.z_score
 		start: pd.Timestamp = args.start
 		end: pd.Timestamp = args.end
-		analyze_z_score_pattern(symbol1, symbol2, start, end)
+		detailed: bool = args.detailed
+		analyze_z_score_pattern(symbol1, symbol2, start, end, detailed)
 	else:
 		parser.print_help()
 
