@@ -37,3 +37,18 @@ class OhlcRecord:
 
 	def __repr__(self):
 		return f"[{self.globex_code}] {self.time} {self.close}"
+
+	@property
+	def unadjusted_open(self) -> float:
+		return self._get_offset() + self.open
+
+	@property
+	def unadjusted_high(self) -> float:
+		return self._get_offset() + self.high
+
+	@property
+	def unadjusted_low(self) -> float:
+		return self._get_offset() + self.low
+
+	def _get_offset(self) -> float:
+		return self.close - self.unadjusted_close

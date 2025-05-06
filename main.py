@@ -1,6 +1,6 @@
+import datetime as dt
 from argparse import ArgumentParser
 from typing import cast
-import datetime as dt
 
 import pandas as pd
 
@@ -11,12 +11,13 @@ from generate import (
 	generate_intraday_contract
 )
 from heatmap import render_heatmap, render_heatmap_all
+from intraday import analyze_session_returns
 from momentum import analyze_momentum
 from seasonality import analyze_seasonality
 from test.test_quantile import perform_backtest
 from test.test_wfo import perform_wfo_backtest
-from intraday import analyze_session_returns
 from z_score import analyze_z_score_pattern
+from features import analyze_ohlc_features, FilterMode
 
 def get_date_argument(date_string: str) -> pd.Timestamp:
 	pd.to_datetime(date_string, format="%Y-%m-%d", errors="raise")
@@ -94,6 +95,16 @@ def main() -> None:
 	z_score_help += "Use --detailed to increase the accuracy of the heatmap for assets that require it\n"
 	group.add_argument("--z-score", metavar=("SYMBOL1", "SYMBOL2"), nargs=2, help=z_score_help)
 	parser.add_argument("--detailed", action="store_true", help="Enables the detailed heatmap mode of --z-score")
+
+	features_help = "Perform a basic analysis of OHLC features for various assets\n"
+	features_help += "Requires the use of --start, --split and --end"
+	group.add_argument("--features", metavar="SYMBOLS", nargs="*", help=features_help)
+
+	filter_help = "Add a filter to --features\n"
+	filter_help += "Supported values: positive, negative"
+	parser.add_argument("--filter", metavar="FILTER", help=filter_help)
+	parser.add_argument("--pca", metavar="FEATURES", type=int, help="Perform dimension reduction using PCA")
+	parser.add_argument("--select-k-best", metavar="FEATURES", type=int, help="Perform dimension reduction using mutual information regression")
 
 	args = parser.parse_args()
 	if args.generate_all:
@@ -196,6 +207,24 @@ def main() -> None:
 		end: pd.Timestamp = args.end
 		detailed: bool = args.detailed
 		analyze_z_score_pattern(symbol1, symbol2, start, end, detailed)
+	elif args.features is not None:
+		assert args.start is not None and args.split is not None and args.end is not None
+		symbols: list[str] = args.features
+		start: pd.Timestamp = args.start
+		split: pd.Timestamp = args.split
+		end: pd.Timestamp = args.end
+		filter_modes = {
+			"positive": FilterMode.POSITIVE,
+			"negative": FilterMode.NEGATIVE
+		}
+		filter_mode_string = args.filter
+		if filter_mode_string is None:
+			filter_mode = FilterMode.NONE
+		else:
+			filter_mode = filter_modes[args.filter]
+		pca_features = args.pca
+		select_k_best = args.select_k_best
+		analyze_ohlc_features(symbols, start, split, end, filter_mode, pca_features, select_k_best)
 	else:
 		parser.print_help()
 

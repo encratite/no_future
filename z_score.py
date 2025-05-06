@@ -1,8 +1,8 @@
-from statistics import mean, stdev
 from math import sqrt
 from multiprocessing import Pool
+from statistics import mean, stdev
 from time import perf_counter
-from typing import Final, Any
+from typing import Final
 
 import matplotlib.pyplot as plt
 import matplotlib.ticker as ticker
