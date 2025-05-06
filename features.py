@@ -29,6 +29,8 @@ class FilterMode(Enum):
 	NONE: Final[int] = 0
 	POSITIVE: Final[int] = 1
 	NEGATIVE: Final[int] = 2
+	NEW_HIGH_5: Final[int] = 3
+	NEW_LOW_5: Final[int] = 4
 
 class OhlcFeature:
 	name: str
@@ -55,6 +57,9 @@ def analyze_ohlc_features(
 	for i, symbol in enumerate(symbols):
 		training_features, training_returns = get_ohlc_features(symbol, start, split, filter_mode)
 		validation_features, validation_returns = get_ohlc_features(symbol, split, end, filter_mode)
+		if len(training_features[0].values) < 2 or len(validation_features[0].values) < 2:
+			print(f"Warning: skipping symbol {symbol} due to lack of features after filtering")
+			continue
 		row = [symbol]
 		for feature in training_features:
 			pearson = pearsonr(feature.values, training_returns)
@@ -127,6 +132,8 @@ def get_ohlc_features(
 	momentum2_values = []
 	momentum3_values = []
 	close_open_values = []
+	close_high_values = []
+	close_low_values = []
 	body_values = []
 	high_low_values = []
 	close_range_values = []
@@ -147,6 +154,8 @@ def get_ohlc_features(
 			momentum2 = get_rate_of_change(today.close, yesterday.close)
 			momentum3 = get_rate_of_change(today.close, records[i - 2].close)
 			close_open = get_rate_of_change(today.close, today.open)
+			close_high = get_rate_of_change(today.close, today.high)
+			close_low = get_rate_of_change(today.close, today.low)
 			high_low_ratio = get_rate_of_change(today.high, today.low)
 			body_ratio = (today.close - today.open) / (today.high - today.low)
 			close_range_ratio = today.close / (today.high - today.low)
@@ -165,6 +174,8 @@ def get_ohlc_features(
 		momentum2_values.append(momentum2)
 		momentum3_values.append(momentum3)
 		close_open_values.append(close_open)
+		close_high_values.append(close_high)
+		close_low_values.append(close_low)
 		high_low_values.append(high_low_ratio)
 		body_values.append(body_ratio)
 		close_range_values.append(close_range_ratio)
@@ -174,6 +185,8 @@ def get_ohlc_features(
 		OhlcFeature("Momentum 2", momentum2_values),
 		OhlcFeature("Momentum 3", momentum3_values),
 		OhlcFeature("Close/Open Ratio", close_open_values),
+		OhlcFeature("Close/High Ratio", close_high_values),
+		OhlcFeature("Close/Low Ratio", close_low_values),
 		OhlcFeature("High/Low Ratio", high_low_values),
 		OhlcFeature("Body Ratio", body_values),
 		# OhlcFeature("Close/Range Ratio", close_range_values),

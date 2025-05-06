@@ -28,10 +28,8 @@ class Strategy(ABC):
 			banned_pattern = re.compile(r"^(CL|NG)(\.F.)?")
 			if banned_pattern.match(symbol) is not None:
 				return True
-		if symbol == "ZS" and time < pd.Timestamp("2009-04-01"):
+		if symbol == "ZS" and time < pd.Timestamp("2010-01-01"):
 			return True
 		elif symbol == "CT" and time < pd.Timestamp("2010-10-01"):
-			return True
-		elif symbol == "ZS" and time < pd.Timestamp("2008-03-01"):
 			return True
 		return False
