@@ -19,7 +19,7 @@ from common import (
 	format_percentage
 )
 from configuration import Configuration
-from constant import DAYS_PER_YEAR
+from constant import DAYS_PER_YEAR, TRADING_DAYS_PER_YEAR
 from manager import AssetManager
 from strategy import Strategy
 
@@ -31,9 +31,12 @@ ENABLE_SHARPE_RATIO: Final[bool] = False
 SAMPLES_MINIMUM: Final[float] = 0.03
 SHARPE_RATIOS_MINIMUM_COUNT: Final[int] = 3
 ENABLE_WEIGHTS: Final[bool] = True
+ENABLE_REGIME: Final[bool] = False
 FEATURE_WEIGHTS: Final[list[float]] = [
 	# 2.0, 1.0, 1.0, 1.0
 	# 1.0, 0.0, 0.0, 0.0
+	# 2.0, 0, 0, 1.0
+	# 2.0, 0, 0.25, 1.0
 	2.0, 0, 0, 1.0
 ]
 
@@ -67,20 +70,43 @@ class SymbolResults:
 		self.symbol2 = symbol2
 		self.clusters = clusters
 
-def analyze_clusters(symbols: list[str], clusters: int, start: pd.Timestamp, end: pd.Timestamp) -> None:
+class ClusterReturns:
+	label: int
+	training_returns: list[float]
+	validation_returns: list[float]
+	mean_training_returns: float
+
+	def __init__(
+		self,
+		label: int,
+		training_returns: list[float],
+		validation_returns: list[float]
+	) -> None:
+		self.label = label
+		self.training_returns = training_returns
+		self.validation_returns = validation_returns
+		self.mean_training_returns = mean(training_returns)
+
+def analyze_clusters(
+	symbols: list[str],
+	clusters: int,
+	start: pd.Timestamp,
+	split: pd.Timestamp,
+	end: pd.Timestamp
+) -> None:
 	assert clusters >= 2
 	assert start < end
 	perf_start = perf_counter()
 	if ENABLE_MULTIPROCESSING:
 		processes = cpu_count()
 		with Pool(processes) as pool:
-			arguments = [(symbols, clusters, start, end, x, processes) for x in range(processes)]
+			arguments = [(symbols, clusters, start, split, end, x, processes) for x in range(processes)]
 			output = pool.starmap(execute_analysis, arguments)
 		all_results: list[SymbolResults] = []
 		for results in output:
 			all_results += results
 	else:
-		all_results = execute_analysis(symbols, clusters, start, end, 0, 1)
+		all_results = execute_analysis(symbols, clusters, start, split, end, 0, 1)
 	all_results = sorted(all_results, key=lambda x: f"{x.symbol1} {x.symbol2}")
 	headers = ["Symbol 1", "Symbol 2"]
 	headers += [f"MR {x + 1}" for x in range(clusters)]
@@ -166,6 +192,7 @@ def execute_analysis(
 	symbols: list[str],
 	clusters: int,
 	start: pd.Timestamp,
+	split: pd.Timestamp,
 	end: pd.Timestamp,
 	process_id: int,
 	processes: int
@@ -173,12 +200,23 @@ def execute_analysis(
 	asset_manager = AssetManager(symbols)
 	symbol_permutations = permutations(symbols, 2)
 	output = []
-	feature_cache: FeatureCache = {}
+	training_feature_cache: FeatureCache = {}
+	validation_feature_cache: FeatureCache = {}
 	for i, permutation in enumerate(symbol_permutations):
 		if i % processes == process_id:
 			symbol1 = permutation[0]
 			symbol2 = permutation[1]
-			results = analyze_pair(symbol1, symbol2, clusters, start, end, feature_cache, asset_manager)
+			results = analyze_pair(
+				symbol1,
+				symbol2,
+				clusters,
+				start,
+				split,
+				end,
+				training_feature_cache,
+				validation_feature_cache,
+				asset_manager
+			)
 			results.process_id = process_id
 			output.append(results)
 	return output
@@ -188,41 +226,61 @@ def analyze_pair(
 	symbol2: str,
 	clusters: int,
 	start: pd.Timestamp,
+	split: pd.Timestamp,
 	end: pd.Timestamp,
-	feature_cache: FeatureCache,
+	training_feature_cache: FeatureCache,
+	validation_feature_cache: FeatureCache,
 	asset_manager: AssetManager
 ) -> SymbolResults:
-	features1, labels = get_features(symbol1, start, end, feature_cache, asset_manager)
-	features2, _ = get_features(symbol2, start, end, feature_cache, asset_manager)
-	features = features1 + features2
-	x = np.array(features).T
+	training_features1, y_training = get_features(symbol1, start, split, training_feature_cache, asset_manager)
+	training_features2, _ = get_features(symbol2, start, split, training_feature_cache, asset_manager)
+	validation_features1, y_validation = get_features(symbol1, split, end, validation_feature_cache, asset_manager)
+	validation_features2, _ = get_features(symbol2, split, end, validation_feature_cache, asset_manager)
+	training_features = training_features1 + training_features2
+	validation_features = validation_features1 + validation_features2
+	x_training = np.array(training_features).T
+	x_validation = np.array(validation_features).T
 	scaler = StandardScaler()
-	x = scaler.fit_transform(x)
+	scaler.fit(x_training)
+	x_training = scaler.transform(x_training)
+	x_validation = scaler.transform(x_validation)
 	k_means = KMeans(n_clusters=clusters, random_state=Configuration.SEED)
 	if ENABLE_WEIGHTS:
 		feature_weights = np.array(FEATURE_WEIGHTS)
-		x = x * np.concatenate((feature_weights, feature_weights))
-	k_means.fit(x)
-	cluster_returns: defaultdict[int, list[float]] = defaultdict(list)
-	for i, label in enumerate(k_means.labels_):
-		returns = labels[i]
-		cluster_returns[label].append(returns)
-	all_cluster_results: list[ClusterResults] = []
-	years = (end - start) / pd.Timedelta(days=DAYS_PER_YEAR)
+		concatenated_weights = np.concatenate((feature_weights, feature_weights))
+		x_training *= concatenated_weights
+		x_validation *= concatenated_weights
+	k_means.fit(x_training)
+	training_predictions = k_means.predict(x_training)
+	validation_predictions = k_means.predict(x_validation)
+	training_cluster_returns: defaultdict[int, list[float]] = defaultdict(list)
+	validation_cluster_returns: defaultdict[int, list[float]] = defaultdict(list)
+	for i, label in enumerate(training_predictions):
+		returns = y_training[i]
+		training_cluster_returns[label].append(returns)
+	for i, label in enumerate(validation_predictions):
+		returns = y_validation[i]
+		validation_cluster_returns[label].append(returns)
+	all_cluster_returns: list[ClusterReturns] = []
 	for i in range(clusters):
-		mean_annual_return = 0.0
-		sharpe_ratio = None
-		cluster_size = 0.0
-		if i in cluster_returns:
-			returns = cluster_returns[i]
-			total_return = prod(1 + x for x in returns) - 1
-			mean_annual_return = total_return / years
-			cluster_size = len(returns) / len(labels)
-			if len(returns) / len(labels) >= SAMPLES_MINIMUM:
-				sharpe_ratio = get_sharpe_ratio(returns)
+		training_returns = training_cluster_returns[i]
+		validation_returns = validation_cluster_returns[i]
+		cluster_returns = ClusterReturns(i, training_returns, validation_returns)
+		all_cluster_returns.append(cluster_returns)
+	all_cluster_returns = sorted(all_cluster_returns, key=lambda x: x.mean_training_returns, reverse=True)
+	all_cluster_results: list[ClusterResults] = []
+	years = (end - split) / pd.Timedelta(days=DAYS_PER_YEAR)
+	for cluster_returns in all_cluster_returns:
+		returns = cluster_returns.validation_returns
+		total_return = prod(1 + x for x in returns) - 1
+		mean_annual_return = total_return / years
+		cluster_size = len(returns) / len(y_validation)
+		if len(returns) / len(y_validation) >= SAMPLES_MINIMUM:
+			sharpe_ratio = get_sharpe_ratio(returns)
+		else:
+			sharpe_ratio = None
 		cluster_results = ClusterResults(mean_annual_return, sharpe_ratio, cluster_size)
 		all_cluster_results.append(cluster_results)
-	all_cluster_results = sorted(all_cluster_results, key=lambda cluster: cluster.mean_annual_return, reverse=True)
 	results = SymbolResults(symbol1, symbol2, all_cluster_results)
 	return results
 
@@ -241,6 +299,7 @@ def get_features(
 	momentum3_values = []
 	momentum5_values = []
 	momentum10_values = []
+	regime_values = []
 	labels = []
 	for time in reference:
 		if time < start:
@@ -248,7 +307,8 @@ def get_features(
 		if time >= end:
 			break
 		tomorrow = series.get(time + pd.Timedelta(days=1), right=True)
-		records = series.get(time, count=10)
+		records_count = TRADING_DAYS_PER_YEAR if ENABLE_REGIME else 10
+		records = series.get(time, count=records_count)
 		closes = [x.close for x in records]
 		all_closes = closes + [tomorrow.close]
 		if records[0].time != time or any(x <= 0 for x in all_closes) or Strategy.is_banned_symbol(symbol, time):
@@ -256,6 +316,8 @@ def get_features(
 			momentum3_values.append(0)
 			momentum5_values.append(0)
 			momentum10_values.append(0)
+			if ENABLE_REGIME:
+				regime_values.append(0)
 			labels.append(0)
 			continue
 
@@ -271,6 +333,9 @@ def get_features(
 		momentum3_values.append(momentum3)
 		momentum5_values.append(momentum5)
 		momentum10_values.append(momentum10)
+		if ENABLE_REGIME:
+			regime = get_momentum(TRADING_DAYS_PER_YEAR)
+			regime_values.append(regime)
 		labels.append(returns)
 	features = [
 		momentum2_values,
@@ -278,5 +343,7 @@ def get_features(
 		momentum5_values,
 		momentum10_values,
 	]
+	if ENABLE_REGIME:
+		features.append(regime_values)
 	feature_cache[symbol] = (features, labels)
 	return features, labels

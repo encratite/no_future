@@ -108,7 +108,7 @@ def main() -> None:
 	parser.add_argument("--select-k-best", metavar="FEATURES", type=int, help="Perform dimension reduction using mutual information regression")
 
 	clustering_help = "Perform feature cluster analysis on all permutations of the specified symbols"
-	clustering_help += "Requires the use of --start, --end and --cluster-size"
+	clustering_help += "Requires the use of --start, --split, --end and --cluster-size"
 	group.add_argument("--clustering", metavar="SYMBOLS", nargs="*", help=clustering_help)
 	parser.add_argument("--cluster-size", metavar="FEATURES", type=int, help="The number of clusters to be calculated for --clustering")
 
@@ -234,13 +234,14 @@ def main() -> None:
 		select_k_best = args.select_k_best
 		analyze_ohlc_features(symbols, start, split, end, filter_mode, pca_features, select_k_best)
 	elif args.clustering:
-		assert args.start is not None and args.end is not None
+		assert args.start is not None and args.split is not None and args.end is not None
 		assert args.cluster_size
 		symbols: list[str] = args.clustering
 		clusters: int = args.cluster_size
 		start: pd.Timestamp = args.start
+		split: pd.Timestamp = args.split
 		end: pd.Timestamp = args.end
-		analyze_clusters(symbols, clusters, start, end)
+		analyze_clusters(symbols, clusters, start, split, end)
 	else:
 		parser.print_help()
 
