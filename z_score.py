@@ -1,4 +1,3 @@
-from math import sqrt
 from multiprocessing import Pool
 from statistics import mean, stdev
 from time import perf_counter
@@ -11,8 +10,11 @@ import pandas as pd
 import seaborn as sns
 from matplotlib.backend_bases import MouseEvent
 
-from common import read_ohlc_series, get_rate_of_change
-from constant import DAYS_PER_YEAR, TRADING_DAYS_PER_YEAR
+from common import (
+	read_ohlc_series,
+	get_rate_of_change,
+	get_sharpe_ratio
+)
 from ohlc import OhlcRecord
 from series import TimeSeries
 
@@ -74,7 +76,7 @@ def analyze_z_score_pattern(
 			returns = [x[1] for x in time_returns]
 			frequency = len(returns) / len(next_day_returns)
 			if len(returns) >= 2 and frequency > FREQUENCY_MINIMUM:
-				sharpe_ratio = get_sharpe_ratio(returns, start, end)
+				sharpe_ratio = get_sharpe_ratio(returns)
 				annotation = f"{sharpe_ratio:.2f}\n({frequency:.2%})"
 			else:
 				sharpe_ratio = 0
@@ -110,18 +112,6 @@ def analyze_z_score_pattern(
 	plt.ylabel(symbol1)
 	plt.show()
 	plt.close()
-
-def get_sharpe_ratio(returns: list[float], start: pd.Timestamp, end: pd.Timestamp) -> float:
-	years = (end - start) / pd.Timedelta(days=DAYS_PER_YEAR)
-	days_not_traded = round(TRADING_DAYS_PER_YEAR * years - len(returns))
-	returns += days_not_traded * [0]
-	mean_daily_returns = mean(returns)
-	daily_standard_deviation = stdev(returns)
-	mean_annual_returns = TRADING_DAYS_PER_YEAR * mean_daily_returns
-	standard_deviation_factor = sqrt(TRADING_DAYS_PER_YEAR)
-	standard_deviation = standard_deviation_factor * daily_standard_deviation
-	sharpe_ratio = mean_annual_returns / standard_deviation
-	return sharpe_ratio
 
 def show_equity_curve(time_returns: list[tuple[pd.Timestamp, float]], x: int, y: int) -> None:
 	time_series = [x[0] for x in time_returns]

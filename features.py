@@ -140,7 +140,7 @@ def get_ohlc_features(
 	return_values = []
 
 	for i, record in enumerate(records[:-1]):
-		if i < 2 or record.time < start:
+		if i < 5 or record.time < start:
 			continue
 		if record.time >= end:
 			break
@@ -158,7 +158,7 @@ def get_ohlc_features(
 			close_low = get_rate_of_change(today.close, today.low)
 			high_low_ratio = get_rate_of_change(today.high, today.low)
 			body_ratio = (today.close - today.open) / (today.high - today.low)
-			close_range_ratio = today.close / (today.high - today.low)
+			close_range_ratio = (today.close - today.low) / (today.high - today.low)
 			returns = get_rate_of_change(tomorrow.close, today.close)
 		except ZeroDivisionError:
 			continue
@@ -169,6 +169,14 @@ def get_ohlc_features(
 					continue
 			case FilterMode.NEGATIVE:
 				if momentum2 > 0:
+					continue
+			case FilterMode.NEW_HIGH_5 | FilterMode.NEW_LOW_5:
+				offset = i + 1
+				recent_records = records[offset - 5:offset]
+				closes = [x.close for x in recent_records]
+				if filter_mode == FilterMode.NEW_HIGH_5 and record.close != max(closes):
+					continue
+				elif filter_mode == FilterMode.NEW_LOW_5 and record.close != min(closes):
 					continue
 
 		momentum2_values.append(momentum2)

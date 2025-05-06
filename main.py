@@ -18,6 +18,7 @@ from test.test_quantile import perform_backtest
 from test.test_wfo import perform_wfo_backtest
 from z_score import analyze_z_score_pattern
 from features import analyze_ohlc_features, FilterMode
+from clustering import analyze_clusters
 
 def get_date_argument(date_string: str) -> pd.Timestamp:
 	pd.to_datetime(date_string, format="%Y-%m-%d", errors="raise")
@@ -105,6 +106,11 @@ def main() -> None:
 	parser.add_argument("--filter", metavar="FILTER", help=filter_help)
 	parser.add_argument("--pca", metavar="FEATURES", type=int, help="Perform dimension reduction using PCA")
 	parser.add_argument("--select-k-best", metavar="FEATURES", type=int, help="Perform dimension reduction using mutual information regression")
+
+	clustering_help = "Perform feature cluster analysis on all permutations of the specified symbols"
+	clustering_help += "Requires the use of --start, --end and --cluster-size"
+	group.add_argument("--clustering", metavar="SYMBOLS", nargs="*", help=clustering_help)
+	parser.add_argument("--cluster-size", metavar="FEATURES", type=int, help="The number of clusters to be calculated for --clustering")
 
 	args = parser.parse_args()
 	if args.generate_all:
@@ -215,7 +221,9 @@ def main() -> None:
 		end: pd.Timestamp = args.end
 		filter_modes = {
 			"positive": FilterMode.POSITIVE,
-			"negative": FilterMode.NEGATIVE
+			"negative": FilterMode.NEGATIVE,
+			"high5": FilterMode.NEW_HIGH_5,
+			"low5": FilterMode.NEW_LOW_5
 		}
 		filter_mode_string = args.filter
 		if filter_mode_string is None:
@@ -225,6 +233,14 @@ def main() -> None:
 		pca_features = args.pca
 		select_k_best = args.select_k_best
 		analyze_ohlc_features(symbols, start, split, end, filter_mode, pca_features, select_k_best)
+	elif args.clustering:
+		assert args.start is not None and args.end is not None
+		assert args.cluster_size
+		symbols: list[str] = args.clustering
+		clusters: int = args.cluster_size
+		start: pd.Timestamp = args.start
+		end: pd.Timestamp = args.end
+		analyze_clusters(symbols, clusters, start, end)
 	else:
 		parser.print_help()
 

@@ -1,16 +1,18 @@
 import os
 from concurrent.futures import ProcessPoolExecutor, as_completed
-from math import log
-from statistics import stdev
+from math import log, sqrt
+from statistics import mean, stdev
 from typing import Any, Callable, Iterable, TypeVar
 
 import matplotlib.dates as mdates
 import numpy as np
+import pandas as pd
 from colorama import Fore, Style
 from tabulate import tabulate
 from tqdm import tqdm
 
 from configuration import Configuration
+from constant import DAYS_PER_YEAR, TRADING_DAYS_PER_YEAR
 from ohlc import OhlcRecord
 from series import TimeSeries
 
@@ -126,3 +128,12 @@ def get_volatility(records: list[OhlcRecord]) -> float:
 	returns = [get_log_returns(a, b) for a, b in zip(closes[1:], closes)]
 	volatility = stdev(returns)
 	return volatility
+
+def get_sharpe_ratio(returns: list[float]) -> float:
+	mean_daily_returns = mean(returns)
+	daily_standard_deviation = stdev(returns)
+	mean_annual_returns = TRADING_DAYS_PER_YEAR * mean_daily_returns
+	standard_deviation_factor = sqrt(TRADING_DAYS_PER_YEAR)
+	standard_deviation = standard_deviation_factor * daily_standard_deviation
+	sharpe_ratio = mean_annual_returns / standard_deviation
+	return sharpe_ratio
