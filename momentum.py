@@ -11,35 +11,43 @@ from common import read_ohlc_series
 from ohlc import OhlcRecord
 from series import TimeSeries
 
-def analyze_momentum(symbols: list[str]) -> None:
-	symbol_records: dict[str, TimeSeries[OhlcRecord]] = {}
+def analyze_momentum(
+	symbols: list[str],
+	start: pd.Timestamp | None,
+	end: pd.Timestamp | None
+) -> None:
+	symbol_series: dict[str, TimeSeries[OhlcRecord]] = {}
 	for symbol in symbols:
-		symbol_records[symbol] = read_ohlc_series(symbol)
-	analyze_momentum_horizon(1, 1, 100, 1, symbol_records)
-	analyze_momentum_horizon(5, 1, 200, 1, symbol_records)
-	analyze_momentum_horizon(20, 1, 300, 1, symbol_records)
-	analyze_momentum_horizon(60, 1, 300, 1, symbol_records)
+		symbol_series[symbol] = read_ohlc_series(symbol)
+	# analyze_momentum_horizon(1, 1, 100, 1, symbol_records)
+	analyze_momentum_horizon(5, 1, 200, 1, start, end, symbol_series)
+	# analyze_momentum_horizon(20, 1, 300, 1, symbol_records)
+	# analyze_momentum_horizon(60, 1, 300, 1, symbol_records)
 
 def analyze_momentum_horizon(
 		forecast_horizon: int,
 		momentum_start: int,
 		momentum_end: int,
 		momentum_step: int,
-		symbol_records: dict[str, TimeSeries[OhlcRecord]]
+		start: pd.Timestamp | None,
+		end: pd.Timestamp | None,
+		symbol_series: dict[str, TimeSeries[OhlcRecord]]
 ) -> None:
 	momentum_dfs = [get_momentum_horizon_data(
+		symbol,
 		forecast_horizon,
 		momentum_start,
 		momentum_end,
 		momentum_step,
-		symbol,
-		records
-	) for symbol, records in symbol_records.items()]
+		start,
+		end,
+		series
+	) for symbol, series in symbol_series.items()]
 	id_var = "momentum"
 	var_name = "Symbol"
 	value_name = "correlation"
 	merged_df = reduce(lambda left, right: pd.merge(left, right, on=id_var), momentum_dfs)
-	symbols = list(symbol_records.keys())
+	symbols = list(symbol_series.keys())
 	melted_df = merged_df.melt(
 		id_vars=id_var,
 		value_vars=symbols,
@@ -58,25 +66,33 @@ def analyze_momentum_horizon(
 	plt.close()
 
 def get_momentum_horizon_data(
+		symbol: str,
 		forecast_horizon: int,
 		momentum_start: int,
 		momentum_end: int,
 		momentum_step: int,
-		symbol: str,
-		records: TimeSeries[OhlcRecord]
+		start: pd.Timestamp | None,
+		end: pd.Timestamp | None,
+		series: TimeSeries[OhlcRecord]
 ) -> pd.DataFrame:
 	momentum_returns_dict: defaultdict[int, list[float]] = defaultdict(list)
 	returns: list[float] = []
-	closes = [cast(OhlcRecord, x).close for x in records.values()]
+	records = series.values()
 	i = momentum_end
-	while i < len(closes) - forecast_horizon:
-		today = closes[i]
-		horizon = closes[i + forecast_horizon]
+	while i < len(records) - forecast_horizon:
+		time = records[i].time
+		if start is not None and time < start:
+			i += 1
+			continue
+		if end is not None and time >= end:
+			break
+		today = records[i].close
+		horizon = records[i + forecast_horizon].close
 		horizon_returns = horizon / today - 1
 		returns.append(horizon_returns)
 		momentum = momentum_start
 		while momentum <= momentum_end:
-			momentum_close = closes[i - momentum]
+			momentum_close = records[i - momentum].close
 			momentum_returns = today / momentum_close - 1
 			momentum_returns_dict[momentum].append(momentum_returns)
 			momentum += momentum_step

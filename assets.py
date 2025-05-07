@@ -150,6 +150,42 @@ def get_assets() -> tuple[list[Asset], pd.Timestamp]:
 			10
 		),
 		Asset(
+			"6A",
+			"Australian Dollar",
+			"USD",
+			0.00005,
+			5,
+			2614.50,
+			False,
+			0.50,
+			0.26,
+			3
+		),
+		Asset(
+			"6B",
+			"British Pound",
+			"USD",
+			0.0001,
+			6.25,
+			1911.86,
+			False,
+			0.50,
+			0.26,
+			2
+		),
+		Asset(
+			"6C",
+			"Canadian Dollar",
+			"USD",
+			0.00005,
+			5,
+			1627.51,
+			False,
+			0.50,
+			0.26,
+			2
+		),
+		Asset(
 			"6E",
 			"Euro FX",
 			"USD",
@@ -186,16 +222,28 @@ def get_assets() -> tuple[list[Asset], pd.Timestamp]:
 			2
 		),
 		Asset(
-			"6B",
-			"British Pound",
+			"6M",
+			"Mexican Peso",
 			"USD",
-			0.0001,
-			6.25,
-			1911.86,
+			0.000010,
+			5.0,
+			1840.01,
 			False,
 			0.50,
 			0.26,
 			2
+		),
+		Asset(
+			"6N",
+			"New Zealand Dollar",
+			"USD",
+			0.00005,
+			5.0,
+			2573.30,
+			False,
+			0.50,
+			0.26,
+			1
 		),
 		Asset(
 			"6S",
@@ -203,7 +251,7 @@ def get_assets() -> tuple[list[Asset], pd.Timestamp]:
 			"USD",
 			0.00005,
 			6.25,
-			8460.06,
+			6210.00,
 			False,
 			0.50,
 			0.26,
@@ -215,35 +263,23 @@ def get_assets() -> tuple[list[Asset], pd.Timestamp]:
 			"USD",
 			0.0001,
 			1.25,
-			428.469,
+			621.00,
 			False,
 			0.15,
 			0.26,
 			2
 		),
 		Asset(
-			"6C",
-			"Canadian Dollar",
+			"6Z",
+			"South African Rand",
 			"USD",
-			0.00005,
-			5,
-			1627.51,
+			0.000025,
+			12.50,
+			2207.73,
 			False,
 			0.50,
 			0.26,
-			3
-		),
-		Asset(
-			"6A",
-			"Australian Dollar",
-			"USD",
-			0.00005,
-			5,
-			2614.50,
-			False,
-			0.50,
-			0.26,
-			3
+			2
 		),
 		Asset(
 			"DX",

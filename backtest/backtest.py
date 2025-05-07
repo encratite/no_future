@@ -90,7 +90,9 @@ class Backtest:
 		return result
 
 	def _get_result(self) -> BacktestResult:
+		strategies = [x.name for x in self._strategies]
 		result = BacktestResult(
+			strategies,
 			self._configuration.start,
 			self._configuration.end,
 			self._time_series,

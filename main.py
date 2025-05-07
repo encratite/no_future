@@ -14,7 +14,7 @@ from heatmap import render_heatmap, render_heatmap_all
 from intraday import analyze_session_returns
 from momentum import analyze_momentum
 from seasonality import analyze_seasonality
-from test.test_high_low import perform_backtest
+from test.test_rotation import perform_backtest
 from test.test_wfo import perform_wfo_backtest
 from z_score import analyze_z_score_pattern
 from features import analyze_ohlc_features, FilterMode
@@ -53,12 +53,12 @@ def main() -> None:
 	group.add_argument("--volatility", metavar=("SYMBOL", "WINDOW"), nargs=2, help=chart_volatility_help)
 
 	heatmap_help = "Render a heatmap of one-day returns of the specified symbol based on the quantiles of the two specified features\n"
-	heatmap_help += "Supported features: momentum2, momentum3, momentum10, regime, gain2pain, volume, interest, volatility"
-	heatmap_help += "The number of quantiles determines the number of cells in the heatmap"
+	heatmap_help += "Supported features: momentum2, momentum3, momentum10, regime, volume, interest, volatility\n"
+	heatmap_help += "The number of quantiles determines the number of cells in the heatmap\n"
 	heatmap_help += "Requires the use of --start and --end"
 	group.add_argument("--heatmap", metavar=("SYMBOL", "FEATURE1", "FEATURE2", "QUANTILES"), nargs=4, help=heatmap_help)
 
-	heatmap_all_help = "Render all heatmaps for the specified symbol"
+	heatmap_all_help = "Render all heatmaps for the specified symbol\n"
 	heatmap_all_help += "Add --statistics to reduce output to just Welch's t-test"
 	group.add_argument("--heatmap-all", metavar="SYMBOL", help=heatmap_all_help)
 	parser.add_argument("--statistics", action="store_true", help="Do not render heatmaps, print tables only")
@@ -76,14 +76,16 @@ def main() -> None:
 	parser.add_argument("--split", metavar="DATE", type=get_date_argument, help="Date at which to split in-sample and out-of-sample data")
 	parser.add_argument("--end", metavar="DATE", type=get_date_argument, help="Read no data after this date")
 
-	group.add_argument("--momentum", metavar="SYMBOLS", nargs="*", help="Analyze momentum correlation of a symbol")
+	momentum_help = "Analyze momentum correlation of a symbol\n"
+	momentum_help += "Optionally supports --start and --end to restrict the time range to analyze"
+	group.add_argument("--momentum", metavar="SYMBOLS", nargs="*", help=momentum_help)
 
 	backtest_help = "Perform a backtest using the strategies defined in backtest_test.py\n"
 	backtest_help += "Requires the use of --start and --end"
 	group.add_argument("--backtest", action="store_true", help=backtest_help)
 
 	backtest_wfo_help = "Perform a backtest with walk-forward optimization using the strategies defined in backtest_test.py\n"
-	backtest_wfo_help += "The WFO years parameter specifies the size of the window into the recent past to perform parameter optimization with"
+	backtest_wfo_help += "The WFO years parameter specifies the size of the window into the recent past to perform parameter optimization with\n"
 	backtest_wfo_help += "Requires the use of --start and --end"
 	group.add_argument("--backtest-wfo", metavar=("SYMBOL", "WFO_YEARS"), nargs=2, help=backtest_wfo_help)
 
@@ -107,7 +109,7 @@ def main() -> None:
 	parser.add_argument("--pca", metavar="FEATURES", type=int, help="Perform dimension reduction using PCA")
 	parser.add_argument("--select-k-best", metavar="FEATURES", type=int, help="Perform dimension reduction using mutual information regression")
 
-	clustering_help = "Perform feature cluster analysis on all permutations of the specified symbols"
+	clustering_help = "Perform feature cluster analysis on all permutations of the specified symbols\n"
 	clustering_help += "Requires the use of --start, --split, --end and --cluster-size"
 	group.add_argument("--clustering", metavar="SYMBOLS", nargs="*", help=clustering_help)
 	parser.add_argument("--cluster-size", metavar="FEATURES", type=int, help="The number of clusters to be calculated for --clustering")
@@ -185,7 +187,9 @@ def main() -> None:
 		render_seasonality_chart(symbol, mode, start, end)
 	elif args.momentum is not None:
 		symbols = args.momentum
-		analyze_momentum(symbols)
+		start: pd.Timestamp | None = args.start
+		end: pd.Timestamp | None = args.end
+		analyze_momentum(symbols, start, end)
 	elif args.backtest:
 		assert args.start is not None and args.end is not None
 		start: pd.Timestamp = args.start

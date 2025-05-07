@@ -18,6 +18,7 @@ from constant import DAYS_PER_YEAR, TRADING_DAYS_PER_YEAR
 from manager import AssetManager
 
 class BacktestResult:
+	strategies: list[str]
 	time_series: list[pd.Timestamp]
 	equity_curve: list[float]
 	drawdown: list[float]
@@ -34,6 +35,7 @@ class BacktestResult:
 
 	def __init__(
 		self,
+		strategies: list[str],
 		start: pd.Timestamp,
 		end: pd.Timestamp,
 		time_series: list[pd.Timestamp],
@@ -46,6 +48,7 @@ class BacktestResult:
 		profitable_trades: int,
 		asset_manager: AssetManager
 	):
+		self.strategies = strategies
 		self.time_series = time_series
 		self.equity_curve = equity_curve
 		self.drawdown = drawdown

@@ -13,3 +13,4 @@ from .quantile_radius import QuantileRadiusStrategy, QuantileFeatures
 from .daily_momentum import DailyMomentumStrategy
 from .new_high_low import NewHighLowStrategy, NewHighLowMode
 from .gradient import GradientStrategy
+from .rotation import RotationStrategy
