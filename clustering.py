@@ -16,7 +16,7 @@ from common import (
 	get_rate_of_change,
 	get_sharpe_ratio,
 	print_table,
-	format_percentage
+	format_percentage, get_mean_annual_return
 )
 from configuration import Configuration
 from constant import DAYS_PER_YEAR, TRADING_DAYS_PER_YEAR
@@ -269,11 +269,9 @@ def analyze_pair(
 		all_cluster_returns.append(cluster_returns)
 	all_cluster_returns = sorted(all_cluster_returns, key=lambda x: x.mean_training_returns, reverse=True)
 	all_cluster_results: list[ClusterResults] = []
-	years = (end - split) / pd.Timedelta(days=DAYS_PER_YEAR)
 	for cluster_returns in all_cluster_returns:
 		returns = cluster_returns.validation_returns
-		total_return = prod(1 + x for x in returns) - 1
-		mean_annual_return = total_return / years
+		mean_annual_return = get_mean_annual_return(returns, split, end)
 		cluster_size = len(returns) / len(y_validation)
 		if len(returns) / len(y_validation) >= SAMPLES_MINIMUM:
 			sharpe_ratio = get_sharpe_ratio(returns)

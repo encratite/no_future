@@ -18,6 +18,7 @@ def get_barchart_symbol(exchange_symbol: str) -> str:
 
 CONTRACT_CONFIGURATION: Final[dict[str, ContractFilter]] = {
 	"A6": ContractFilter("6A", legacy_cutoff="A6H01", first_filter_contract="A6J17", include_months=["H", "M", "U", "Z"], cutoff_date="2001-03-27"),
+	"AH": ContractFilter("AW"),
 	"B6": ContractFilter("6B", legacy_cutoff="B6M03", first_filter_contract="B6J17", include_months=["H", "M", "U", "Z"]),
 	"BA": ContractFilter("MBT"),
 	"BT": ContractFilter("BTC"),

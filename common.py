@@ -1,6 +1,6 @@
 import os
 from concurrent.futures import ProcessPoolExecutor, as_completed
-from math import log, sqrt
+from math import log, sqrt, prod
 from statistics import mean, stdev
 from typing import Any, Callable, Iterable, TypeVar
 
@@ -137,3 +137,9 @@ def get_sharpe_ratio(returns: list[float]) -> float:
 	standard_deviation = standard_deviation_factor * daily_standard_deviation
 	sharpe_ratio = mean_annual_returns / standard_deviation
 	return sharpe_ratio
+
+def get_mean_annual_return(returns: list[float], start: pd.Timestamp, end: pd.Timestamp) -> float:
+	years = (end - start) / pd.Timedelta(days=DAYS_PER_YEAR)
+	total_return = prod(1 + x for x in returns) - 1
+	mean_annual_return = total_return / years
+	return mean_annual_return

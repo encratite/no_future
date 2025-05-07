@@ -138,6 +138,18 @@ def get_assets() -> tuple[list[Asset], pd.Timestamp]:
 			2
 		),
 		Asset(
+			"AW",
+			"Bloomberg Commodity Index",
+			"USD",
+			0.01,
+			1.0,
+			798.944,
+			False,
+			0.85,
+			0.77,
+			10
+		),
+		Asset(
 			"6E",
 			"Euro FX",
 			"USD",

@@ -13,7 +13,7 @@ from matplotlib.backend_bases import MouseEvent
 from common import (
 	read_ohlc_series,
 	get_rate_of_change,
-	get_sharpe_ratio
+	get_mean_annual_return
 )
 from ohlc import OhlcRecord
 from series import TimeSeries
@@ -68,7 +68,7 @@ def analyze_z_score_pattern(
 		cell1 = get_cell(z_score1, boundaries)
 		cell2 = get_cell(z_score2, boundaries)
 		returns_matrix[cell1][cell2].append((time, returns))
-	sharpe_ratio_matrix = np.zeros((n, n))
+	annual_returns_matrix = np.zeros((n, n))
 	annotations = np.empty((n, n), dtype=object)
 	for i in range(n):
 		for j in range(n):
@@ -76,12 +76,12 @@ def analyze_z_score_pattern(
 			returns = [x[1] for x in time_returns]
 			frequency = len(returns) / len(next_day_returns)
 			if len(returns) >= 2 and frequency > FREQUENCY_MINIMUM:
-				sharpe_ratio = get_sharpe_ratio(returns)
-				annotation = f"{sharpe_ratio:.2f}\n({frequency:.2%})"
+				mean_annual_return = get_mean_annual_return(returns, start, end)
+				annotation = f"{mean_annual_return:.2%}\n({frequency:.2%})"
 			else:
-				sharpe_ratio = 0
+				mean_annual_return = 0
 				annotation = "-"
-			sharpe_ratio_matrix[i, j] = sharpe_ratio
+			annual_returns_matrix[i, j] = mean_annual_return
 			annotations[i, j] = annotation
 	duration = perf_counter() - perf_start
 	print(f"Calculated Z-score matrix in {duration:.2f} s")
@@ -103,7 +103,7 @@ def analyze_z_score_pattern(
 		else:
 			label = f"> {lower_boundary}"
 		tick_labels.append(label)
-	ax = sns.heatmap(sharpe_ratio_matrix, ax=ax, annot=annotations, fmt="", xticklabels=tick_labels, yticklabels=tick_labels)
+	ax = sns.heatmap(annual_returns_matrix, ax=ax, annot=annotations, fmt="", xticklabels=tick_labels, yticklabels=tick_labels)
 	cbar = ax.collections[0].colorbar
 	formatter = ticker.FuncFormatter(lambda x, _: f"{x:.2f}")
 	cbar.ax.yaxis.set_major_formatter(formatter)
