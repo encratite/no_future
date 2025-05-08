@@ -39,10 +39,9 @@ def run_backtest_pool(symbol: str, start: pd.Timestamp, end: pd.Timestamp, evalu
 	sorted_results = sorted(results, key=lambda x: x.primary_result.sharpe_ratio, reverse=True)
 	trimmed_results = sorted_results[:result_count]
 	for i, result in enumerate(trimmed_results):
-		secondary_string = f"{result.secondary_result.sharpe_ratio:.2f}"
-		if result.secondary_result.sharpe_ratio > result.primary_result.sharpe_ratio:
-			secondary_string = f"{Fore.GREEN}{secondary_string}{Style.RESET_ALL}"
-		print(f"{i + 1}. {result.strategy}: {result.primary_result.sharpe_ratio:.2f} ({secondary_string})")
+		primary_string = get_sharpe_ratio_string(result.primary_result.sharpe_ratio)
+		secondary_string = get_sharpe_ratio_string(result.secondary_result.sharpe_ratio)
+		print(f"{i + 1}. {result.strategy}: {primary_string} ({secondary_string})")
 	print("")
 	print("Best strategy:")
 	best_result = trimmed_results[0]
@@ -52,6 +51,15 @@ def run_backtest_pool(symbol: str, start: pd.Timestamp, end: pd.Timestamp, evalu
 	delta = end_time - start_time
 	print(f"Performed backtests in {delta:.1f} s")
 	return trimmed_results
+
+def get_sharpe_ratio_string(sharpe_ratio: float) -> str:
+	if sharpe_ratio is None:
+		sharpe_ratio_string = "-"
+	elif sharpe_ratio > 0.8:
+		sharpe_ratio_string = f"{Fore.GREEN}{sharpe_ratio:.2f}{Style.RESET_ALL}"
+	else:
+		sharpe_ratio_string = f"{sharpe_ratio:.2f}"
+	return sharpe_ratio_string
 
 def review_backtests(results: list[MultiBacktestResult]) -> None:
 	while True:

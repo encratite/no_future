@@ -12,7 +12,7 @@ from strategy import *
 from .common import MultiBacktestResult, run_backtest_pool, review_backtests
 
 def perform_backtest(start: pd.Timestamp, end: pd.Timestamp) -> None:
-	symbol = "AW"
+	symbol = "CL"
 	results = run_backtest_pool(symbol, start, end, evaluate_parameters)
 	review_backtests(results)
 
@@ -53,7 +53,7 @@ def evaluate_parameters(symbol: str, start: pd.Timestamp, end: pd.Timestamp, ass
 			volatility_window_size=volatility_window_size,
 			volatility_filter=volatility_filter
 		)
-		new_high_low_strategy.weight = 10
+		new_high_low_strategy.weight = 1
 
 		configuration = BacktestConfiguration(start, end, cash)
 		backtest = Backtest([new_high_low_strategy], configuration, asset_manager)

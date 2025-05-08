@@ -116,7 +116,7 @@ def unknown_mode() -> Exception:
 	return Exception("Unknown seasonality chart mode")
 
 def get_prices_from_returns(seasonal_returns: list[float]) -> list[float]:
-	synthetic_price = 10.0
+	synthetic_price = 1.0
 	prices = [synthetic_price]
 	for returns in seasonal_returns:
 		synthetic_price *= 1 + returns

@@ -18,7 +18,7 @@ from common import (
 from ohlc import OhlcRecord
 from series import TimeSeries
 
-UNADJUSTED_CLOSE_MINIMUM: Final[float] = 0.1
+UNADJUSTED_CLOSE_MINIMUM: Final[float] = 0.01
 FREQUENCY_MINIMUM: Final[float] = 0.005
 
 TIME: Final[str] = "time"
@@ -29,7 +29,8 @@ def analyze_z_score_pattern(
 	symbol2: str,
 	start: pd.Timestamp,
 	end: pd.Timestamp,
-	detailed: bool
+	detailed: bool,
+	delay: bool
 ) -> None:
 	perf_start = perf_counter()
 	series1 = read_ohlc_series(symbol1)
@@ -45,21 +46,24 @@ def analyze_z_score_pattern(
 		output = list(pool.starmap(get_momentum2_z_scores, arguments))
 	time_series, z_scores1, next_day_returns = output[0]
 	_, z_scores2, _ = output[1]
+	if delay:
+		time_series = time_series[1:]
+		z_scores1 = z_scores1[1:]
+		next_day_returns = next_day_returns[1:]
+		z_scores2 = z_scores2[:-1]
 	assert len(z_scores1) == len(next_day_returns)
 	assert len(z_scores1) == len(z_scores2), f"{len(z_scores1)} != {len(z_scores2)}"
+	z_score_boundary = 0.4
 	regular_boundaries = [
+		(None, -z_score_boundary),
+		(-z_score_boundary, z_score_boundary),
+		(z_score_boundary, None),
+	]
+	detailed_boundaries = [
 		(None, -0.75),
 		(-0.75, 0.0),
 		(0.0, 0.75),
 		(0.75, None),
-	]
-	detailed_boundaries = [
-		(None, -1.25),
-		(-1.25, -0.75),
-		(-0.75, 0.0),
-		(0.0, 0.75),
-		(0.75, 1.25),
-		(1.25, None)
 	]
 	boundaries = detailed_boundaries if detailed else regular_boundaries
 	n = len(boundaries)
@@ -74,13 +78,14 @@ def analyze_z_score_pattern(
 		for j in range(n):
 			time_returns = returns_matrix[i][j]
 			returns = [x[1] for x in time_returns]
-			frequency = len(returns) / len(next_day_returns)
-			if len(returns) >= 2 and frequency > FREQUENCY_MINIMUM:
-				mean_annual_return = get_mean_annual_return(returns, start, end)
-				annotation = f"{mean_annual_return:.2%}\n({frequency:.2%})"
-			else:
-				mean_annual_return = 0
-				annotation = "-"
+			mean_annual_return = 0
+			annotation = "-"
+			if len(next_day_returns) > 0:
+				frequency = len(returns) / len(next_day_returns)
+				if len(returns) >= 2 and frequency > FREQUENCY_MINIMUM:
+					mean_annual_return = get_mean_annual_return(returns, start, end)
+					risk_adjusted_return = mean(returns) / stdev(returns)
+					annotation = f"{mean_annual_return:.2%}\n{risk_adjusted_return:.2f}\n({frequency:.2%})"
 			annual_returns_matrix[i, j] = mean_annual_return
 			annotations[i, j] = annotation
 	duration = perf_counter() - perf_start

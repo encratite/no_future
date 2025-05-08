@@ -14,7 +14,7 @@ from heatmap import render_heatmap, render_heatmap_all
 from intraday import analyze_session_returns
 from momentum import analyze_momentum
 from seasonality import analyze_seasonality
-from test.test_rotation import perform_backtest
+from test.test_high_low import perform_backtest
 from test.test_wfo import perform_wfo_backtest
 from z_score import analyze_z_score_pattern
 from features import analyze_ohlc_features, FilterMode
@@ -98,6 +98,7 @@ def main() -> None:
 	z_score_help += "Use --detailed to increase the accuracy of the heatmap for assets that require it\n"
 	group.add_argument("--z-score", metavar=("SYMBOL1", "SYMBOL2"), nargs=2, help=z_score_help)
 	parser.add_argument("--detailed", action="store_true", help="Enables the detailed heatmap mode of --z-score")
+	parser.add_argument("--delay", action="store_true", help="Delay the time series of symbol 2 by one day to account for exchanges that are located in different timezones")
 
 	features_help = "Perform a basic analysis of OHLC features for various assets\n"
 	features_help += "Requires the use of --start, --split and --end"
@@ -216,7 +217,8 @@ def main() -> None:
 		start: pd.Timestamp = args.start
 		end: pd.Timestamp = args.end
 		detailed: bool = args.detailed
-		analyze_z_score_pattern(symbol1, symbol2, start, end, detailed)
+		delay: bool = args.delay
+		analyze_z_score_pattern(symbol1, symbol2, start, end, detailed, delay)
 	elif args.features is not None:
 		assert args.start is not None and args.split is not None and args.end is not None
 		symbols: list[str] = args.features

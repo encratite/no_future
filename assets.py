@@ -102,6 +102,30 @@ def get_assets() -> tuple[list[Asset], pd.Timestamp]:
 			2
 		),
 		Asset(
+			"FESX",
+			"Euro Stoxx 50",
+			"EUR",
+			1.0,
+			10,
+			3263.13,
+			True,
+			0.85,
+			0.26,
+			2
+		),
+		Asset(
+			"FESB",
+			"Stoxx Europe 600 Banks",
+			"EUR",
+			0.1,
+			5,
+			909.881,
+			True,
+			0.85,
+			0.26,
+			2
+		),
+		Asset(
 			"FDAX",
 			"Mini-DAX",
 			"EUR",
@@ -582,6 +606,18 @@ def get_assets() -> tuple[list[Asset], pd.Timestamp]:
 			3
 		),
 		Asset(
+			"GF",
+			"Feeder Cattle",
+			"USD",
+			0.00025,
+			12.50,
+			8305.76,
+			False,
+			0.85,
+			2.12,
+			3
+		),
+		Asset(
 			"ZB",
 			"30-Year T-Bond",
 			"USD",
@@ -639,6 +675,42 @@ def get_assets() -> tuple[list[Asset], pd.Timestamp]:
 			False,
 			0.85,
 			0.98,
+			1
+		),
+		Asset(
+			"FGBL",
+			"Euro Bund",
+			"EUR",
+			0.01,
+			10,
+			2911.52,
+			False,
+			0.85,
+			0.22,
+			1
+		),
+		Asset(
+			"FGBM",
+			"Euro Bobl",
+			"EUR",
+			0.01,
+			10,
+			1968.71,
+			False,
+			0.85,
+			0.22,
+			1
+		),
+		Asset(
+			"FGBS",
+			"Euro Schatz",
+			"EUR",
+			0.005,
+			5,
+			635.127,
+			False,
+			0.85,
+			0.22,
 			1
 		),
 		Asset(
@@ -705,13 +777,13 @@ def get_assets() -> tuple[list[Asset], pd.Timestamp]:
 			"V2TX",
 			"VSTOXX",
 			"EUR",
-			0.05,
+			0.5,
 			5.0,
-			825,
+			1201.75,
 			False,
 			0.85,
 			0.22,
-			3
+			1
 		)
 	]
 	return assets, margin_date

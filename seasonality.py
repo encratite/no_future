@@ -125,6 +125,6 @@ def analyze_seasonality_by_symbol(symbol: str, start: pd.Timestamp, split: pd.Ti
 		if previous_record is not None:
 			returns = get_rate_of_change(record.close, previous_record.close)
 			stats = symbol_stats.old_stats if time < split else symbol_stats.recent_stats
-			stats.add(time, returns)
+			stats.add(previous_record.time, returns)
 		previous_record = record
 	return symbol_stats
