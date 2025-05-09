@@ -162,6 +162,42 @@ def get_assets() -> tuple[list[Asset], pd.Timestamp]:
 			2
 		),
 		Asset(
+			"FSMI",
+			"Swiss Market Index",
+			"USD",
+			1.0,
+			10.0,
+			6387.81,
+			True,
+			0.85,
+			0.26,
+			2
+		),
+		Asset(
+			"FMWO",
+			"MSCI World Index",
+			"EUR",
+			0.10,
+			1.0,
+			9235.49,
+			True,
+			0.85,
+			0.26,
+			2
+		),
+		Asset(
+			"MNI",
+			"Micro Nikkei 225",
+			"JPY",
+			5,
+			250,
+			120685.43,
+			True,
+			0.85,
+			1.40,
+			2
+		),
+		Asset(
 			"AW",
 			"Bloomberg Commodity Index",
 			"USD",
@@ -731,7 +767,7 @@ def get_assets() -> tuple[list[Asset], pd.Timestamp]:
 			"USD",
 			5,
 			0.5,
-			2773.81,
+			3375.13,
 			False,
 			2.25,
 			2.52,

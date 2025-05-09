@@ -17,6 +17,7 @@ def get_barchart_symbol(exchange_symbol: str) -> str:
 	raise Exception(f"Unknown exchange symbol: {exchange_symbol}")
 
 CONTRACT_CONFIGURATION: Final[dict[str, ContractFilter]] = {
+	"AC": ContractFilter("FMWO"),
 	"A6": ContractFilter("6A", legacy_cutoff="A6H01", first_filter_contract="A6J17", include_months=["H", "M", "U", "Z"], cutoff_date="2001-03-27"),
 	"AH": ContractFilter("AW"),
 	"B6": ContractFilter("6B", legacy_cutoff="B6M03", first_filter_contract="B6J17", include_months=["H", "M", "U", "Z"]),
@@ -53,6 +54,7 @@ CONTRACT_CONFIGURATION: Final[dict[str, ContractFilter]] = {
 	"N6": ContractFilter("6N"),
 	"NG": ContractFilter(legacy_cutoff="NGF04"),
 	"NM": ContractFilter("MNQ"),
+	"NL": ContractFilter("MNI", include_months=["H", "M", "U", "Z"]),
 	"NQ": ContractFilter(legacy_cutoff="NQM01"),
 	"PL": ContractFilter(legacy_cutoff="PLN01", first_filter_contract="PLG10", exclude_months=["F", "J", "N", "V"], cutoff_date="2002-08-08"),
 	"QL": ContractFilter("MHG"),
@@ -63,6 +65,7 @@ CONTRACT_CONFIGURATION: Final[dict[str, ContractFilter]] = {
 	"SB": ContractFilter(legacy_cutoff="SBH03"),
 	"SI": ContractFilter(legacy_cutoff="SIH03", include_months=["F", "G", "J", "M", "Q", "V", "X"], f_records_limit=2),
 	"SO": ContractFilter("SIL", exclude_months=["F", "G", "J", "M", "Q", "V", "X"]),
+	"SZ": ContractFilter("FSMI", legacy_cutoff="SZU02"),
 	"T6": ContractFilter("6Z", cutoff_date="2000-05-10", include_months=["H", "M", "U", "Z"]),
 	"TA": ContractFilter("MET"),
 	"TM": ContractFilter("FDXM"),

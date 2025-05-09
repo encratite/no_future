@@ -99,6 +99,9 @@ def main() -> None:
 	group.add_argument("--z-score", metavar=("SYMBOL1", "SYMBOL2"), nargs=2, help=z_score_help)
 	parser.add_argument("--detailed", action="store_true", help="Enables the detailed heatmap mode of --z-score")
 	parser.add_argument("--delay", action="store_true", help="Delay the time series of symbol 2 by one day to account for exchanges that are located in different timezones")
+	parser.add_argument("--boundary", metavar="BOUNDARY", type=float, help="Z-score boundary for the default tiling mode of --z-score")
+	parser.add_argument("--minimum", metavar="MINIMUM", type=float, help="Minimum value for all Z-scores in --z-score")
+	parser.add_argument("--maximum", metavar="MAXIMUM", type=float, help="Maximum value for all Z-scores in --z-score")
 
 	features_help = "Perform a basic analysis of OHLC features for various assets\n"
 	features_help += "Requires the use of --start, --split and --end"
@@ -218,7 +221,10 @@ def main() -> None:
 		end: pd.Timestamp = args.end
 		detailed: bool = args.detailed
 		delay: bool = args.delay
-		analyze_z_score_pattern(symbol1, symbol2, start, end, detailed, delay)
+		boundary: float | None = args.boundary
+		minimum: float | None = args.minimum
+		maximum: float | None = args.maximum
+		analyze_z_score_pattern(symbol1, symbol2, start, end, detailed, delay, boundary, minimum, maximum)
 	elif args.features is not None:
 		assert args.start is not None and args.split is not None and args.end is not None
 		symbols: list[str] = args.features
