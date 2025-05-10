@@ -56,7 +56,7 @@ def format_ratio(ratio: float | None) -> str:
 	else:
 		return f"{Fore.RED}{ratio_string}{Style.RESET_ALL}"
 
-def print_table(table: list[list[Any]], headers: bool = True, always_right: bool = False):
+def print_table(table: list[list[Any]], headers: bool = True, always_right: bool = False, newline: bool = True):
 	numeric_columns = len(table[0]) - 1
 	if always_right:
 		column_alignment = len(table[0]) * ("right",)
@@ -65,7 +65,8 @@ def print_table(table: list[list[Any]], headers: bool = True, always_right: bool
 	headers = "firstrow" if headers else []
 	table_string = tabulate(table, headers=headers, tablefmt="simple_outline", disable_numparse=True, colalign=column_alignment)
 	print(table_string)
-	print("")
+	if newline:
+		print("")
 
 def read_ohlc_series(symbol: str, intraday: bool = False) -> TimeSeries[OhlcRecord]:
 	if "." not in symbol and not intraday:
