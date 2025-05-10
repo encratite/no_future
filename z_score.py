@@ -28,6 +28,7 @@ FREQUENCY_MINIMUM: Final[float] = 0.005
 ANALYSIS_WINDOW_SIZE: Final[int] = 20
 EXTREME_STATS_RATIO: Final[float] = 0.2
 MINIMUM_SAMPLES: Final[int] = 10
+ENABLE_FILTERING: Final[bool] = False
 
 TIME: Final[str] = "time"
 EQUITY: Final[str] = "equity"
@@ -162,20 +163,33 @@ def analyze_z_score_pattern(
 	plt.title(f"{symbol1} vs. {symbol2} Momentum Z-Scores{info_string}")
 	plt.xlabel(symbol2)
 	plt.ylabel(symbol1)
-	plt.show(block=False)
-	while True:
-		filter_expression = input()
-		if filter_expression == "":
-			break
-		try:
-			filter_code = compile(filter_expression, "<string>", "eval")
-			execute_filter(0, 0, 0, filter_code)
-		except Exception as error:
-			print(error)
-			continue
-		x, y = active_cell
-		active_data = returns_matrix[y][x]
-		show_equity_curve(symbol1, symbol2, start, end, active_data, x, y, stats, filter_code)
+	if ENABLE_FILTERING:
+		plt.show(block=False)
+
+		def show_with_filter(show: bool) -> None:
+			x, y = active_cell
+			active_data = returns_matrix[y][x]
+			show_equity_curve(symbol1, symbol2, start, end, active_data, x, y, stats, filter_code, show)
+
+		while True:
+			filter_expression = input()
+			if filter_expression == "":
+				break
+			if active_cell is None:
+				print("No active cell")
+				continue
+			if filter_expression == "show":
+				show_with_filter(True)
+				continue
+			try:
+				filter_code = compile(filter_expression, "<string>", "eval")
+				execute_filter(0, 0, 0, filter_code)
+			except Exception as error:
+				print(error)
+				continue
+			show_with_filter(False)
+	else:
+		plt.show()
 	plt.close()
 
 def execute_filter(
@@ -203,8 +217,10 @@ def show_equity_curve(
 	x: int,
 	y: int,
 	stats: dict[pd.Timestamp, AnalysisStats],
-	filter_code: CodeType | None = None
+	filter_code: CodeType | None = None,
+	show: bool = True
 ) -> None:
+	removed_ratio: float | None = None
 	if filter_code is not None:
 		filtered_timestamps: set[pd.Timestamp] = set()
 		filtered_stats: dict[pd.Timestamp, AnalysisStats] = {}
@@ -219,13 +235,14 @@ def show_equity_curve(
 				filtered_timestamps.add(time)
 				filtered_stats[time] = analysis_stats
 		removed_ratio = 1 - len(filtered_stats) / len(stats)
-		print(f"Filter removed {removed_ratio:.2%} of samples")
 		time_returns = [(time, returns) for time, returns in time_returns if time in filtered_timestamps]
 		stats = filtered_stats
 		if len(time_returns) < MINIMUM_SAMPLES:
 			print(f"Not enough samples left ({len(time_returns)})")
 			return
-	analyze_cell_returns(symbol1, symbol2, start, end, time_returns, stats)
+	analyze_cell_returns(symbol1, symbol2, start, end, time_returns, stats, removed_ratio)
+	if not show:
+		return
 	time_series = [x[0] for x in time_returns]
 	cash = 1
 	equity_curve = []
@@ -252,7 +269,8 @@ def analyze_cell_returns(
 	start: pd.Timestamp,
 	end: pd.Timestamp,
 	time_returns: list[tuple[pd.Timestamp, float]],
-	stats: dict[pd.Timestamp, AnalysisStats]
+	stats: dict[pd.Timestamp, AnalysisStats],
+	removed_ratio: float | None
 ) -> None:
 	positive_stats_returns = []
 	negative_stats_returns = []
@@ -299,6 +317,8 @@ def analyze_cell_returns(
 	print_table(table, newline=False)
 	returns = [r for t, r in time_returns]
 	mean_annual_return, risk_adjusted_return = get_return_metrics(returns, start, end)
+	if removed_ratio is not None:
+		print(f"Removed {removed_ratio:.2%} of samples")
 	print(f"{mean_annual_return:.2%} MAR, {risk_adjusted_return:.2f} RAR\n")
 
 def get_return_metrics(
