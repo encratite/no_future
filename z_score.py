@@ -2,25 +2,27 @@ from math import sqrt
 from multiprocessing import Pool
 from statistics import mean, stdev
 from time import perf_counter
-from typing import Final, Callable
 from types import CodeType
+from typing import Final, Callable
 
-from colorama import Fore, Style
 import matplotlib.pyplot as plt
 import matplotlib.ticker as ticker
 import numpy as np
 import pandas as pd
 import seaborn as sns
+from colorama import Fore, Style
 from matplotlib.backend_bases import MouseEvent
 from scipy.stats import pearsonr
 
 from common import (
-	read_ohlc_series,
 	get_rate_of_change,
 	get_mean_annual_return,
-	print_table
+	print_table,
+	get_round_trip_cost_ratio
 )
+from manager import AssetManager
 from ohlc import OhlcRecord
+from position import PositionSide
 from series import TimeSeries
 
 UNADJUSTED_CLOSE_MINIMUM: Final[float] = 0.1
@@ -29,6 +31,7 @@ ANALYSIS_WINDOW_SIZE: Final[int] = 20
 EXTREME_STATS_RATIO: Final[float] = 0.2
 MINIMUM_SAMPLES: Final[int] = 10
 ENABLE_FILTERING: Final[bool] = False
+ENABLE_FEES: Final[bool] = True
 
 TIME: Final[str] = "time"
 EQUITY: Final[str] = "equity"
@@ -60,8 +63,12 @@ def analyze_z_score_pattern(
 	maximum: float | None
 ) -> None:
 	perf_start = perf_counter()
-	series1 = read_ohlc_series(symbol1)
-	series2 = read_ohlc_series(symbol2)
+	asset_manager = AssetManager([symbol1, symbol2])
+	series1 = asset_manager.get_series(symbol1)
+	series2 = asset_manager.get_series(symbol2)
+	asset = asset_manager.get_asset(symbol1)
+	records = series1.values()
+	round_trip_cost_ratio = get_round_trip_cost_ratio(records, asset)
 	time_series1 = get_filtered_time_series(series1, start, end)
 	time_series2 = get_filtered_time_series(series2, start, end)
 	shared_time_series = time_series1 & time_series2
@@ -117,8 +124,12 @@ def analyze_z_score_pattern(
 			if len(next_day_returns) > 0:
 				frequency = len(returns) / len(next_day_returns)
 				if len(returns) >= 2 and frequency > FREQUENCY_MINIMUM:
-					mean_annual_return, risk_adjusted_return = get_return_metrics(returns, start, end)
-					annotation = f"{mean_annual_return:.2%} MAR\n{risk_adjusted_return:.2f} RAR\n({frequency:.2%})"
+					mean_annual_return, risk_adjusted_return, side = get_return_metrics(returns, start, end, round_trip_cost_ratio)
+					if side == PositionSide.LONG:
+						short_string = ""
+					else:
+						short_string = " (short)"
+					annotation = f"{mean_annual_return:.2%} MAR{short_string}\n{risk_adjusted_return:.2f} RAR\n({frequency:.2%})"
 			annual_returns_matrix[i, j] = mean_annual_return
 			annotations[i, j] = annotation
 	duration = perf_counter() - perf_start
@@ -136,7 +147,7 @@ def analyze_z_score_pattern(
 			nonlocal active_cell
 			active_cell = x, y
 			data = returns_matrix[y][x]
-			show_equity_curve(symbol1, symbol2, start, end, data, x, y, stats)
+			show_equity_curve(symbol1, symbol2, start, end, data, x, y, stats, round_trip_cost_ratio)
 
 	fig.canvas.mpl_connect("button_press_event", onclick) # type: ignore
 	tick_labels = []
@@ -169,7 +180,19 @@ def analyze_z_score_pattern(
 		def show_with_filter(show: bool) -> None:
 			x, y = active_cell
 			active_data = returns_matrix[y][x]
-			show_equity_curve(symbol1, symbol2, start, end, active_data, x, y, stats, filter_code, show)
+			show_equity_curve(
+				symbol1,
+				symbol2,
+				start,
+				end,
+				active_data,
+				x,
+				y,
+				stats,
+				round_trip_cost_ratio,
+				filter_code,
+				show
+			)
 
 		while True:
 			filter_expression = input()
@@ -217,6 +240,7 @@ def show_equity_curve(
 	x: int,
 	y: int,
 	stats: dict[pd.Timestamp, AnalysisStats],
+	round_trip_cost_ratio: float,
 	filter_code: CodeType | None = None,
 	show: bool = True
 ) -> None:
@@ -240,7 +264,16 @@ def show_equity_curve(
 		if len(time_returns) < MINIMUM_SAMPLES:
 			print(f"Not enough samples left ({len(time_returns)})")
 			return
-	analyze_cell_returns(symbol1, symbol2, start, end, time_returns, stats, removed_ratio)
+	analyze_cell_returns(
+		symbol1,
+		symbol2,
+		start,
+		end,
+		time_returns,
+		stats,
+		removed_ratio,
+		round_trip_cost_ratio
+	)
 	if not show:
 		return
 	time_series = [x[0] for x in time_returns]
@@ -270,7 +303,8 @@ def analyze_cell_returns(
 	end: pd.Timestamp,
 	time_returns: list[tuple[pd.Timestamp, float]],
 	stats: dict[pd.Timestamp, AnalysisStats],
-	removed_ratio: float | None
+	removed_ratio: float | None,
+	round_trip_cost_ratio: float
 ) -> None:
 	positive_stats_returns = []
 	negative_stats_returns = []
@@ -316,19 +350,30 @@ def analyze_cell_returns(
 			table[i + 1].append(cell)
 	print_table(table, newline=False)
 	returns = [r for t, r in time_returns]
-	mean_annual_return, risk_adjusted_return = get_return_metrics(returns, start, end)
+	mean_annual_return, risk_adjusted_return, position = get_return_metrics(returns, start, end, round_trip_cost_ratio)
 	if removed_ratio is not None:
 		print(f"Removed {removed_ratio:.2%} of samples")
-	print(f"{mean_annual_return:.2%} MAR, {risk_adjusted_return:.2f} RAR\n")
+	print(f"{mean_annual_return:.2%} MAR, {risk_adjusted_return:.2f} RAR, {"long" if position == PositionSide.LONG else "short"}\n")
 
 def get_return_metrics(
 	returns: list[float],
 	start: pd.Timestamp,
 	end: pd.Timestamp,
-) -> tuple[float, float]:
-	mean_annual_return = get_mean_annual_return(returns, start, end)
-	risk_adjusted_return = mean(returns) / stdev(returns)
-	return mean_annual_return, risk_adjusted_return
+	round_trip_cost_ratio: float
+) -> tuple[float, float, PositionSide]:
+	if ENABLE_FEES:
+		if mean(returns) > 0:
+			adjusted_returns = [x - round_trip_cost_ratio for x in returns]
+			side = PositionSide.LONG
+		else:
+			adjusted_returns = [1 / (x + 1) - 1 - round_trip_cost_ratio for x in returns]
+			side = PositionSide.SHORT
+	else:
+		adjusted_returns = returns
+		side = PositionSide.LONG if mean(returns) > 0 else PositionSide.SHORT
+	mean_annual_return = get_mean_annual_return(adjusted_returns, start, end)
+	risk_adjusted_return = mean(adjusted_returns) / stdev(adjusted_returns)
+	return mean_annual_return, risk_adjusted_return, side
 
 def format_value(value: float) -> str:
 	if value > 0:

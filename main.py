@@ -14,7 +14,7 @@ from heatmap import render_heatmap, render_heatmap_all
 from intraday import analyze_session_returns
 from momentum import analyze_momentum
 from seasonality import analyze_seasonality
-from test.test_high_low import perform_backtest
+from test.test_quantile import perform_backtest
 from test.test_wfo import perform_wfo_backtest
 from z_score import analyze_z_score_pattern
 from features import analyze_ohlc_features, FilterMode

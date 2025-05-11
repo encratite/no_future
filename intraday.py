@@ -5,23 +5,29 @@ import matplotlib.pyplot as plt
 import pandas as pd
 import seaborn as sns
 
+from asset import Asset
 from common import (
 	read_ohlc_series,
 	get_rate_of_change,
-	format_percentage
+	format_percentage, get_round_trip_cost_ratio
 )
+from manager import AssetManager
+from ohlc import OhlcRecord
 
 ID_VAR: Final[str] = "time"
 SESSION: Final[str] = "Session"
 OVERNIGHT: Final[str] = "Overnight"
 VAR_NAME: Final[str] = "value"
 VALUE_NAME: Final[str] = "value_name"
-
+ENABLE_FEES: Final[bool] = True
+OVERNIGHT_SPREAD_TICKS: Final[int] = 2
 DEBUG_OUTPUT: Final[bool] = False
 
 def analyze_session_returns(symbol: str, session_start: dt.time, session_end: dt.time, start: pd.Timestamp, end: pd.Timestamp) -> None:
 	assert session_start < session_end
 	series = read_ohlc_series(symbol, intraday=True)
+	manager = AssetManager([symbol])
+	asset = manager.get_asset(symbol)
 	records = series.values()
 	session_opens: list[tuple[pd.Timestamp, float]] = []
 	session_closes: list[float] = []
@@ -65,8 +71,8 @@ def analyze_session_returns(symbol: str, session_start: dt.time, session_end: dt
 		session_times.append(session_time)
 		session_returns.append(session_return)
 		overnight_returns.append(overnight_return)
-	session_equity_curve = get_equity_curve(session_returns)
-	overnight_equity_curve = get_equity_curve(overnight_returns)
+	session_equity_curve = get_equity_curve(session_returns, False, records, asset)
+	overnight_equity_curve = get_equity_curve(overnight_returns, True, records, asset)
 	df = pd.DataFrame({
 		ID_VAR: session_times,
 		SESSION: session_equity_curve,
@@ -91,10 +97,12 @@ def analyze_session_returns(symbol: str, session_start: dt.time, session_end: dt
 	plt.show()
 	plt.close()
 
-def get_equity_curve(returns: list[float]) -> list[float]:
+def get_equity_curve(returns: list[float], overnight: bool, records: list[OhlcRecord], asset: Asset) -> list[float]:
 	cash = 1
 	equity_curve = []
+	additional_spread = OVERNIGHT_SPREAD_TICKS if overnight else 0
+	round_trip_cost_ratio = get_round_trip_cost_ratio(records, asset, additional_spread)
 	for x in returns:
-		cash *= 1 + x
+		cash *= 1 + x - (round_trip_cost_ratio if ENABLE_FEES else 0)
 		equity_curve.append(cash)
 	return equity_curve

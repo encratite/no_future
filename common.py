@@ -11,6 +11,7 @@ from colorama import Fore, Style
 from tabulate import tabulate
 from tqdm import tqdm
 
+from asset import Asset
 from configuration import Configuration
 from constant import DAYS_PER_YEAR, TRADING_DAYS_PER_YEAR
 from ohlc import OhlcRecord
@@ -144,3 +145,11 @@ def get_mean_annual_return(returns: list[float], start: pd.Timestamp, end: pd.Ti
 	total_return = prod(1 + x for x in returns) - 1
 	mean_annual_return = total_return / years
 	return mean_annual_return
+
+def get_round_trip_cost_ratio(records: list[OhlcRecord], asset: Asset, additional_spread: int = 0) -> float:
+	spread_ticks = asset.tick_size + additional_spread
+	last_close = records[-1].close
+	round_trip_cost = 2 * (asset.broker_fee + asset.exchange_fee + spread_ticks * asset.tick_value)
+	nominal_value = last_close / asset.tick_size * asset.tick_value
+	round_trip_cost_ratio = round_trip_cost / nominal_value
+	return round_trip_cost_ratio
