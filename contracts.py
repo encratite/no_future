@@ -57,6 +57,7 @@ CONTRACT_CONFIGURATION: Final[dict[str, ContractFilter]] = {
 	"NL": ContractFilter("MNI", include_months=["H", "M", "U", "Z"]),
 	"NQ": ContractFilter(copy="MNQ", legacy_cutoff="NQM01"),
 	"PL": ContractFilter(legacy_cutoff="PLN01", first_filter_contract="PLG10", exclude_months=["F", "J", "N", "V"], cutoff_date="2002-08-08"),
+	"QA": ContractFilter("BB", legacy_cutoff="QAV09"),
 	"QL": ContractFilter("MHG"),
 	"QR": ContractFilter("RTY", legacy_cutoff="QRH03"),
 	"RB": ContractFilter(legacy_cutoff="RBJ06"),

@@ -48,6 +48,10 @@ def main() -> None:
 	chart_ratio_help += "Use --start and --end to limit the chart to a certain time range"
 	group.add_argument("--chart-ratio", metavar=("BASE", "DIVISOR", "DIVIDEND"), nargs=3, help=chart_ratio_help)
 
+	correlation_help = "Render a chart of the sliding window PCC for two assets\n"
+	correlation_help += "Requires the use of --start and --end"
+	group.add_argument("--correlation", metavar=("SYMBOL1", "SYMBOL2", "DAYS"), nargs=3, help=correlation_help)
+
 	chart_volatility_help = "Render volatility chart for the specified symbol using a window size of n days\n"
 	chart_volatility_help += "Requires the use of --start and --end"
 	group.add_argument("--volatility", metavar=("SYMBOL", "WINDOW"), nargs=2, help=chart_volatility_help)
@@ -148,6 +152,15 @@ def main() -> None:
 		start: pd.Timestamp | None = args.start
 		end: pd.Timestamp | None = args.end
 		render_ratio_chart(base_symbol, dividend_symbol, divisor_symbol, start, end)
+	elif args.correlation is not None:
+		assert args.start is not None and args.end is not None
+		arguments: list[str] = args.correlation
+		symbol1 = arguments[0]
+		symbol2 = arguments[1]
+		sliding_window = int(arguments[2])
+		start: pd.Timestamp | None = args.start
+		end: pd.Timestamp | None = args.end
+		render_correlation_chart(symbol1, symbol2, sliding_window, start, end)
 	elif args.volatility is not None:
 		assert args.start is not None and args.end is not None
 		symbol, window_size_string = args.volatility

@@ -474,6 +474,18 @@ def get_assets() -> tuple[list[Asset], pd.Timestamp]:
 			2
 		),
 		Asset(
+			"HO",
+			"Heating OIl",
+			"USD",
+			0.0001,
+			4.20,
+			25720.80,
+			False,
+			0.85,
+			1.52,
+			1
+		),
+		Asset(
 			"NG",
 			"Natural Gas",
 			"USD",
@@ -750,7 +762,7 @@ def get_assets() -> tuple[list[Asset], pd.Timestamp]:
 			1
 		),
 		Asset(
-			"BT",
+			"BTC",
 			"Bitcoin",
 			"USD",
 			5,

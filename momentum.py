@@ -19,10 +19,10 @@ def analyze_momentum(
 	symbol_series: dict[str, TimeSeries[OhlcRecord]] = {}
 	for symbol in symbols:
 		symbol_series[symbol] = read_ohlc_series(symbol)
-	# analyze_momentum_horizon(1, 1, 100, 1, symbol_records)
-	analyze_momentum_horizon(5, 1, 200, 1, start, end, symbol_series)
-	# analyze_momentum_horizon(20, 1, 300, 1, symbol_records)
-	# analyze_momentum_horizon(60, 1, 300, 1, symbol_records)
+	# analyze_momentum_horizon(1, 1, 100, 1, start, end, symbol_series)
+	# analyze_momentum_horizon(5, 1, 200, 1, start, end, symbol_series)
+	analyze_momentum_horizon(20, 1, 300, 1, start, end, symbol_series)
+	# analyze_momentum_horizon(60, 1, 300, 1, start, end, symbol_series)
 
 def analyze_momentum_horizon(
 		forecast_horizon: int,
@@ -100,7 +100,7 @@ def get_momentum_horizon_data(
 	x_momentum = list(momentum_returns_dict.keys())
 	y_correlation: list[float] = []
 	for momentum, momentum_returns in momentum_returns_dict.items():
-		correlation = spearmanr(momentum_returns, returns).statistic  # type: ignore
+		correlation = spearmanr(momentum_returns, returns).statistic # type: ignore
 		y_correlation.append(correlation)
 	df = pd.DataFrame({
 		"momentum": x_momentum,

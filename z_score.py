@@ -1,4 +1,4 @@
-from math import sqrt
+from math import sqrt, prod
 from multiprocessing import Pool
 from statistics import mean, stdev
 from time import perf_counter
@@ -68,6 +68,8 @@ def analyze_z_score_pattern(
 	series2 = asset_manager.get_series(symbol2)
 	asset = asset_manager.get_asset(symbol1)
 	records = series1.values()
+	# print_mean_and_stdev(series1)
+	# print_mean_and_stdev(series2)
 	round_trip_cost_ratio = get_round_trip_cost_ratio(records, asset)
 	time_series1 = get_filtered_time_series(series1, start, end)
 	time_series2 = get_filtered_time_series(series2, start, end)
@@ -361,16 +363,15 @@ def get_return_metrics(
 	end: pd.Timestamp,
 	round_trip_cost_ratio: float
 ) -> tuple[float, float, PositionSide]:
+	cumulative_return = prod(x + 1 for x in returns) - 1
+	side = PositionSide.LONG if cumulative_return > 0 else PositionSide.SHORT
 	if ENABLE_FEES:
-		if mean(returns) > 0:
+		if side == PositionSide.LONG:
 			adjusted_returns = [x - round_trip_cost_ratio for x in returns]
-			side = PositionSide.LONG
 		else:
 			adjusted_returns = [1 / (x + 1) - 1 - round_trip_cost_ratio for x in returns]
-			side = PositionSide.SHORT
 	else:
 		adjusted_returns = returns
-		side = PositionSide.LONG if mean(returns) > 0 else PositionSide.SHORT
 	mean_annual_return = get_mean_annual_return(adjusted_returns, start, end)
 	risk_adjusted_return = mean(adjusted_returns) / stdev(adjusted_returns)
 	return mean_annual_return, risk_adjusted_return, side
@@ -474,3 +475,10 @@ def get_correlation(
 		stats = AnalysisStats(correlation, volatility1, volatility2)
 		output[time] = stats
 	return output
+
+def print_mean_and_stdev(series: TimeSeries[OhlcRecord]) -> None:
+	records = series.values()
+	closes = [x.close for x in records]
+	returns = [get_rate_of_change(a, b) for a, b in zip(closes[1:], closes)]
+	print(f"Mean: {mean(returns)}")
+	print(f"Standard deviation: {stdev(returns)}")

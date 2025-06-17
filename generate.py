@@ -231,3 +231,5 @@ def generate_intraday_contract(symbol: str, suffix: str) -> None:
 	df = pd.DataFrame(df_dict)
 	output_path = os.path.join(Configuration.FEATHER_INTRADAY_DIRECTORY, f"{symbol}.feather")
 	df.to_feather(output_path)
+	output_path = os.path.join(Configuration.CSV_INTRADAY_DIRECTORY, f"{symbol}.csv")
+	df.to_csv(output_path)
