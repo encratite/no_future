@@ -231,7 +231,7 @@ def get_assets() -> tuple[list[Asset], pd.Timestamp]:
 			False,
 			0.50,
 			0.26,
-			2
+			3
 		),
 		Asset(
 			"6C",
@@ -475,7 +475,7 @@ def get_assets() -> tuple[list[Asset], pd.Timestamp]:
 		),
 		Asset(
 			"HO",
-			"Heating OIl",
+			"Heating Oil",
 			"USD",
 			0.0001,
 			4.20,
